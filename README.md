@@ -8,6 +8,8 @@
 
 # DbGate - (no)SQL database client
 
+> **Olee AI internal use only. Not for distribution.** See [OLEE-INTERNAL-USE.md](OLEE-INTERNAL-USE.md).
+
 DbGate is cross-platform database manager.
 It's designed to be simple to use and effective, when working with more databases simultaneously.
 But there are also many advanced features like schema compare, visual query designer, chart visualisation or batch export and import.
