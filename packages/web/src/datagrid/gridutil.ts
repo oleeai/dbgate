@@ -41,7 +41,17 @@ export function countColumnSizes(grider: Grider, columns, containerWidth, displa
     context.font = 'bold 14px Helvetica';
 
     const text = column.headerText;
-    const headerWidth = context.measureText(text).width + 64;
+    let headerWidth = context.measureText(text).width + 64;
+
+    // room for the key icons and the data type that ColumnHeaderControl shows next to the name;
+    // the base allowance above already fits a short type such as "text"
+    if (column.isPrimaryKey) headerWidth += 18;
+    if (column.foreignKey) headerWidth += 18;
+    const dataType = column.displayedDataType || column.dataType;
+    if (_.isString(dataType)) {
+      context.font = '11.5px Helvetica';
+      headerWidth += Math.max(0, context.measureText(dataType).width - 20);
+    }
 
     // if (column.columnClientObject != null && column.columnClientObject.icon != null) headerWidth += 16;
     // if (this.getFilterOnColumn(column.uniquePath)) headerWidth += 16;

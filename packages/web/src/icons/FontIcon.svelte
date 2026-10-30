@@ -58,6 +58,8 @@
     'icon code': 'mdi mdi-code-tags',
     'icon undo': 'mdi mdi-undo',
     'icon search': 'mdi mdi-magnify',
+    'icon primary-key': 'mdi mdi-key',
+    'icon foreign-key': 'mdi mdi-link',
     'icon minus-box': 'mdi mdi-minus-box-outline',
     'icon plus-box': 'mdi mdi-plus-box-outline',
     'icon plus-thick': 'mdi mdi-plus-thick',
