@@ -28,6 +28,9 @@
   export let folid;
   export let skipLocal = false;
   export let defaultTeamFolder = false;
+  // the database a saved query was written for, kept beside the file (see savedFilesMeta in the API)
+  export let conid = undefined;
+  export let database = undefined;
   // export let cntid;
 
   const teamFolders = useTeamFolders();
@@ -88,7 +91,7 @@
         showSnackbarError('Failed to save to team folder.');
       }
     } else if (cloudFolder === '__local') {
-      await apiCall('files/save', { folder, file: name, data, format });
+      await apiCall('files/save', { folder, file: name, data, format, conid, database });
       closeCurrentModal();
       if (onSave) {
         onSave(name, {

@@ -2,6 +2,7 @@ import * as TableDataTab from './TableDataTab.svelte';
 import * as CollectionDataTab from './CollectionDataTab.svelte';
 import * as ViewDataTab from './ViewDataTab.svelte';
 import * as TableStructureTab from './TableStructureTab.svelte';
+import * as TableDetailsTab from './TableDetailsTab.svelte';
 import * as QueryTab from './QueryTab.svelte';
 import * as ShellTab from './ShellTab.svelte';
 import * as ArchiveFileTab from './ArchiveFileTab.svelte';
@@ -29,6 +30,7 @@ import * as AppLogTab from './AppLogTab.svelte';
 import * as SettingsTab from './SettingsTab.svelte';
 import * as BackupDatabaseTab from './BackupDatabaseTab.svelte';
 import * as RestoreDatabaseTab from './RestoreDatabaseTab.svelte';
+import * as SchemaVisualizerTab from './SchemaVisualizerTab.svelte';
 
 import protabs from './index-pro';
 
@@ -37,6 +39,7 @@ export default {
   CollectionDataTab,
   ViewDataTab,
   TableStructureTab,
+  TableDetailsTab,
   QueryTab,
   ShellTab,
   ArchiveFileTab,
@@ -64,5 +67,6 @@ export default {
   SettingsTab,
   BackupDatabaseTab,
   RestoreDatabaseTab,
+  SchemaVisualizerTab,
   ...protabs,
 };

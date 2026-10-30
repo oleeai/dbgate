@@ -56,6 +56,7 @@
   import FocusedConnectionInfoWidget from './FocusedConnectionInfoWidget.svelte';
   import SubProcedureParamList from '../appobj/SubProcedureParamList.svelte';
   import SubProcedureLineList from '../appobj/SubProcedureLineList.svelte';
+  import openSchemaVisualizer from '../utility/openSchemaVisualizer';
   import { _t } from '../translations';
 
   export let conid;
@@ -150,8 +151,24 @@
     runCommand(isDocumentDb ? 'new.collection' : 'new.table');
   }
 
+  $: canVisualizeSchema = driver?.databaseEngineTypes?.includes('sql') && $objects?.tables?.length > 0;
+
+  function handleOpenSchemaVisualizer() {
+    openSchemaVisualizer({ conid, database, schemaName: $appliedCurrentSchema });
+  }
+
   function createRefreshDatabaseMenu() {
-    return getDatabasStatusMenu({ conid, database }, driver);
+    return [
+      canVisualizeSchema && [
+        {
+          text: _t('sqlObject.schemaVisualizer', { defaultMessage: 'Schema visualizer' }),
+          onClick: handleOpenSchemaVisualizer,
+          testid: 'SqlObjectList_schemaVisualizer',
+        },
+        { divider: true },
+      ],
+      ...getDatabasStatusMenu({ conid, database }, driver),
+    ];
   }
 
   function handleFullRefreshDatabase() {
@@ -306,14 +323,26 @@
   </WidgetsInnerContainer>
 {:else}
   <div class="toolbar">
-    <SchemaSelector
-      schemaList={_.isArray($schemaList) ? $schemaList : null}
-      objectList={flatFilteredList}
-      connection={$connection}
-      {conid}
-      {database}
-      {driver}
-    />
+    <div class="schema-row">
+      <SchemaSelector
+        schemaList={_.isArray($schemaList) ? $schemaList : null}
+        objectList={flatFilteredList}
+        connection={$connection}
+        {conid}
+        {database}
+        {driver}
+      />
+      {#if canVisualizeSchema && _.isArray($schemaList) && $schemaList.length > 0}
+        <button
+          class="visualize-button"
+          on:click={handleOpenSchemaVisualizer}
+          title={_t('sqlObject.schemaVisualizer', { defaultMessage: 'Schema visualizer' })}
+          data-testid="SqlObjectList_schemaVisualizerButton"
+        >
+          <FontIcon icon="icon diagram" />
+        </button>
+      {/if}
+    </div>
 
     {#if canCreateObject}
       <div class="new-object">
@@ -454,6 +483,49 @@
     flex-direction: column;
     gap: 6px;
     padding: 8px 10px 6px;
+  }
+
+  .schema-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  /* databases without schemas render no picker; keep the toolbar spacing as it was */
+  .schema-row:empty {
+    display: none;
+  }
+  .schema-row :global(.trigger) {
+    flex: 1;
+    min-width: 0;
+  }
+  .visualize-button {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--theme-ui-border);
+    border-radius: var(--dim-radius-md);
+    background: transparent;
+    color: var(--theme-generic-font-grayed);
+    font-size: 15px;
+    cursor: pointer;
+    transition:
+      background-color var(--dim-transition-fast),
+      border-color var(--dim-transition-fast),
+      color var(--dim-transition-fast);
+  }
+  .visualize-button:hover {
+    border-color: var(--theme-ui-border-strong);
+    background: var(--theme-ui-hover);
+    color: var(--theme-generic-font);
+  }
+  .visualize-button:focus-visible {
+    outline: none;
+    border-color: var(--theme-input-border-focus-color);
+    box-shadow: var(--theme-input-focus-ring);
   }
 
   .new-object {

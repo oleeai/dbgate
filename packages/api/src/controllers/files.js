@@ -30,6 +30,8 @@ const {
   SecureExportWriteRefusedError,
 } = require('../utility/security');
 const { copyAppLogsIntoFile, getRecentAppLogRecords } = require('../utility/appLogStore');
+const { getRequestUser } = require('../utility/requestUser');
+const savedFilesMeta = require('../utility/savedFilesMeta');
 const logger = getLogger('files');
 
 // Team Premium file permissions (Administration - roles/users - files): a disk file can be
@@ -58,7 +60,8 @@ module.exports = {
   isDiskFileDenied,
   list_access: 'self',
   list_meta: true,
-  async list({ folder, parseFrontMatter }, req) {
+  // withMeta adds who saved each file and when, and its group (see savedFilesMeta)
+  async list({ folder, parseFrontMatter, withMeta }, req) {
     // folder is a directory name in filesdir - '../..' would list any server directory
     if (typeof folder != 'string' || !folder || !checkSecureFilePathsWithoutDirectory(folder)) return [];
     const loadedPermissions = await loadPermissionsFromRequest(req);
@@ -69,12 +72,22 @@ module.exports = {
     for (const file of await fs.readdir(dir)) {
       if (!(await isDiskFileDenied(folder, file, req, loadedPermissions))) fileNames.push(file);
     }
-    if (!parseFrontMatter) {
+    if (!parseFrontMatter && !withMeta) {
       return fileNames.map(file => ({ folder, file }));
     }
+    const folderMeta = withMeta ? await savedFilesMeta.getFolderMeta(folder) : null;
     const result = [];
     for (const file of fileNames) {
       const item = { folder, file };
+      if (withMeta) {
+        const stat = await fs.stat(path.join(dir, file)).catch(() => null);
+        if (stat) item.modifiedAt = stat.mtimeMs;
+        if (Object.prototype.hasOwnProperty.call(folderMeta, file)) item.fileMeta = folderMeta[file];
+      }
+      if (!parseFrontMatter) {
+        result.push(item);
+        continue;
+      }
       let fh;
       try {
         fh = await require('fs').promises.open(path.join(dir, file), 'r');
@@ -133,6 +146,7 @@ module.exports = {
     }
     if (await isDiskFileDenied(folder, file, req, loadedPermissions)) return false;
     await fs.unlink(path.join(filesdir(), folder, file));
+    await savedFilesMeta.remove(folder, file);
     socket.emitChanged(`files-changed`, { folder });
     socket.emitChanged(`all-files-changed`);
     this.emitChangedFolder(folder);
@@ -155,6 +169,7 @@ module.exports = {
       return false;
     }
     await fs.rename(path.join(filesdir(), folder, file), path.join(filesdir(), folder, newFile));
+    await savedFilesMeta.rename(folder, file, newFile);
     socket.emitChanged(`files-changed`, { folder });
     socket.emitChanged(`all-files-changed`);
     return true;
@@ -187,8 +202,25 @@ module.exports = {
       return false;
     }
     await fs.copyFile(path.join(filesdir(), folder, file), path.join(filesdir(), folder, newFile));
+    await savedFilesMeta.copy(folder, file, newFile, getRequestUser(req));
     socket.emitChanged(`files-changed`, { folder });
     socket.emitChanged(`all-files-changed`);
+    return true;
+  },
+
+  setGroup_access: 'self',
+
+  setGroup_meta: true,
+  async setGroup({ folder, file, group }, req) {
+    const loadedPermissions = await loadPermissionsFromRequest(req);
+    if (!hasPermission(`files/${folder}/write`, loadedPermissions)) return false;
+    if (!checkSecureFilePathsWithoutDirectory(folder, file)) {
+      return false;
+    }
+    if (await isDiskFileDenied(folder, file, req, loadedPermissions)) return false;
+    if (!(await fs.exists(path.join(filesdir(), folder, file)))) return false;
+    await savedFilesMeta.setGroup(folder, file, group);
+    socket.emitChanged(`files-changed`, { folder });
     return true;
   },
 
@@ -243,7 +275,8 @@ module.exports = {
   save_access: 'self',
 
   save_meta: true,
-  async save({ folder, file, data, format }, req) {
+  // conid and database say which database a saved query was written for (see savedFilesMeta)
+  async save({ folder, file, data, format, conid, database }, req) {
     const loadedPermissions = await loadPermissionsFromRequest(req);
     if (!checkSecureFilePathsWithoutDirectory(folder, file)) {
       return false;
@@ -271,6 +304,7 @@ module.exports = {
         await fs.mkdir(dir);
       }
       await fs.writeFile(path.join(dir, file), serialize(format, data));
+      await savedFilesMeta.recordSave(folder, file, getRequestUser(req), { conid, database });
       socket.emitChanged(`files-changed`, { folder });
       socket.emitChanged(`all-files-changed`);
       if (folder == 'shell') {

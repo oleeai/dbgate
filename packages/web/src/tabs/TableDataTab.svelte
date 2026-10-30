@@ -107,7 +107,7 @@
   import invalidateCommands from '../commands/invalidateCommands';
   import { showModal } from '../modals/modalTools';
   import ErrorMessageModal from '../modals/ErrorMessageModal.svelte';
-  import { getTableInfo, useConnectionInfo, useDatabaseInfo } from '../utility/metadataLoaders';
+  import { getTableInfo, useConnectionInfo, useDatabaseInfo, useTableInfo } from '../utility/metadataLoaders';
   import { scriptToSql } from 'dbgate-sqltree';
   import { extensions, lastUsedDefaultActions } from '../stores';
   import ConfirmSqlModal from '../modals/ConfirmSqlModal.svelte';
@@ -120,7 +120,7 @@
   import { getLocalStorage, setLocalStorage } from '../utility/storageCache';
   import ToolStripContainer from '../buttons/ToolStripContainer.svelte';
   import ToolStripCommandButton from '../buttons/ToolStripCommandButton.svelte';
-  import ToolStripFilter from '../buttons/ToolStripFilter.svelte';
+  import ToolStripFilterBuilder from '../buttons/ToolStripFilterBuilder.svelte';
   import ToolStripExportButton, { createQuickExportHandlerRef } from '../buttons/ToolStripExportButton.svelte';
   import ToolStripCommandSplitButton from '../buttons/ToolStripCommandSplitButton.svelte';
   import { getBoolSettingsValue, getIntSettingsValue } from '../settings/settingsTools';
@@ -150,6 +150,9 @@
   let autoRefreshTimer = null;
 
   $: connection = useConnectionInfo({ conid });
+  $: tableInfo = useTableInfo({ conid, database, schemaName, pureName });
+  $: driver = findEngineDriver($connection, $extensions);
+  $: filterColumns = ($tableInfo?.columns || []).map(col => ({ ...col, uniqueName: col.columnName }));
 
   const { editorState, editorValue, setEditorData } = useEditorData({
     tabid,
@@ -171,6 +174,25 @@
       multiColumnFilter: value,
       formViewRecordNumber: 0,
       disabledMultiColumnFilter: false,
+    }));
+    cache.update(reloadDataCacheFunc);
+  }
+
+  // same config changes as the grid display's setFilter / removeFilter, so the filter row stays in sync;
+  // a column that gets its first filter moves to the end, so its chip shows up last
+  function setColumnFilter(uniqueName, value) {
+    config.update(cfg => ({
+      ...cfg,
+      filters: value
+        ? cfg.filters?.[uniqueName]
+          ? { ...cfg.filters, [uniqueName]: value }
+          : { ..._.omit(cfg.filters, [uniqueName]), [uniqueName]: value }
+        : _.omit(cfg.filters, [uniqueName]),
+      formFilterColumns: value
+        ? cfg.formFilterColumns
+        : (cfg.formFilterColumns || []).filter(x => x != uniqueName),
+      formViewRecordNumber: 0,
+      disabledFilterColumns: (cfg.disabledFilterColumns || []).filter(x => x != uniqueName),
     }));
     cache.update(reloadDataCacheFunc);
   }
@@ -346,16 +368,23 @@
     setCache={cache.update}
     changeSetState={$changeSetStore}
     focusOnVisible
+    pagingFooter
     allowRowSidePanel
     {changeSetStore}
     {dispatchChangeSet}
   />
 
   <svelte:fragment slot="toolstrip">
-    <ToolStripFilter
-      value={$config?.multiColumnFilter}
+    <ToolStripFilterBuilder
+      columns={filterColumns}
+      filters={$config?.filters}
+      disabledFilterColumns={$config?.disabledFilterColumns}
+      multiColumnFilter={$config?.multiColumnFilter}
+      disabledMultiColumnFilter={$config?.disabledMultiColumnFilter}
+      {driver}
       placeholder={_t('tableData.filterRows', { defaultMessage: 'Filter rows...' })}
-      onChange={setToolbarFilter}
+      {setColumnFilter}
+      setMultiColumnFilter={setToolbarFilter}
       data-testid="TableDataTab_filterRows"
     />
     <ToolStripCommandButton command="dataForm.goToFirst" hideDisabled iconOnly data-testid="TableDataTab_goToFirst" />
@@ -471,6 +500,19 @@
           },
         });
       }}>SQL</ToolStripButton
+    >
+    <ToolStripButton
+      icon="icon table-details"
+      title={_t('tableData.detailsHint', { defaultMessage: 'Indexes, triggers, policies and enums' })}
+      on:click={() =>
+        openNewTab({
+          title: pureName,
+          icon: 'img table-details',
+          tabComponent: 'TableDetailsTab',
+          tabPreviewMode: true,
+          props: { schemaName, pureName, conid, database, objectTypeField: 'tables' },
+        })}
+      data-testid="TableDataTab_details">{_t('tableData.details', { defaultMessage: 'Details' })}</ToolStripButton
     >
 
     <div class="toolstrip-divider" />

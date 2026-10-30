@@ -1,6 +1,9 @@
 <script>
   import FontIcon from '../icons/FontIcon.svelte';
-  import DropDownButton from '../buttons/DropDownButton.svelte';
+  import ColumnHeaderMenu from './ColumnHeaderMenu.svelte';
+  import ColumnQuickStats from './ColumnQuickStats.svelte';
+  import ColumnSidePanel from '../tableeditor/ColumnSidePanel.svelte';
+  import { confirmDeleteColumn } from '../tableeditor/columnAlterTools';
   import splitterDrag from '../utility/splitterDrag';
   import _ from 'lodash';
 
@@ -13,6 +16,7 @@
   import DefineDictionaryDescriptionModal from '../modals/DefineDictionaryDescriptionModal.svelte';
   import { sleep } from '../utility/common';
   import { isProApp } from '../utility/proTools';
+  import { _t } from '../translations';
 
   export let column;
   export let conid = undefined;
@@ -29,6 +33,18 @@
   export let seachInColumns = '';
   export let onReload = undefined;
   export let driver = null;
+  export let onHideColumn = null;
+  export let onFilterColumn = null;
+  // Quick stats run a read-only aggregate on the base table or view
+  export let allowQuickStats = false;
+  export let allowStructureEdit = false;
+
+  let domHeader;
+  let showQuickStats = false;
+
+  // Expanded foreign-key columns belong to another table, so table actions only apply to own columns
+  $: isOwnColumn = column?.uniquePath?.length == 1 && !!column?.columnName;
+  $: canEditStructure = allowStructureEdit && isOwnColumn;
 
   const openReferencedTable = () => {
     openDatabaseObjectDetail('TableDataTab', null, {
@@ -63,59 +79,168 @@
     });
   };
 
-  function getMenu() {
-    return [
-      setSort && { onClick: () => setSort('ASC'), text: 'Sort ascending' },
-      setSort && { onClick: () => setSort('DESC'), text: 'Sort descending' },
-      isSortDefined && addToSort && !order && { onClick: () => addToSort('ASC'), text: 'Add to sort - ascending' },
-      isSortDefined && addToSort && !order && { onClick: () => addToSort('DESC'), text: 'Add to sort - descending' },
-      order && clearSort && { onClick: () => clearSort(), text: 'Clear sort criteria' },
-      { onClick: () => copyTextToClipboard(column.columnName), text: 'Copy column name' },
+  function openColumnPanel(columnName) {
+    showModal(ColumnSidePanel, {
+      conid,
+      database,
+      schemaName: column.schemaName,
+      pureName: column.pureName,
+      columnName,
+      driver,
+      onSaved: onReload,
+    });
+  }
 
-      column.foreignKey && [{ divider: true }, { onClick: openReferencedTable, text: column.foreignKey.refTableName }],
+  function handleDeleteColumn() {
+    confirmDeleteColumn(
+      { conid, database, driver },
+      { schemaName: column.schemaName, pureName: column.pureName, columnName: column.columnName },
+      { onSaved: onReload }
+    );
+  }
+
+  function getMenuSections() {
+    return [
+      setSort && {
+        label: _t('columnMenu.sort', { defaultMessage: 'Sort' }),
+        items: [
+          {
+            onClick: () => setSort('ASC'),
+            text: _t('columnMenu.sortAscending', { defaultMessage: 'Sort ascending' }),
+            icon: 'mdi mdi-sort-ascending',
+            checked: order == 'ASC',
+          },
+          {
+            onClick: () => setSort('DESC'),
+            text: _t('columnMenu.sortDescending', { defaultMessage: 'Sort descending' }),
+            icon: 'mdi mdi-sort-descending',
+            checked: order == 'DESC',
+          },
+          isSortDefined &&
+            addToSort &&
+            !order && [
+              {
+                onClick: () => addToSort('ASC'),
+                text: _t('columnMenu.addToSortAscending', { defaultMessage: 'Add to sort, ascending' }),
+                icon: 'mdi mdi-sort-reverse-variant',
+              },
+              {
+                onClick: () => addToSort('DESC'),
+                text: _t('columnMenu.addToSortDescending', { defaultMessage: 'Add to sort, descending' }),
+                icon: 'mdi mdi-sort-variant',
+              },
+            ],
+          (order || isSortDefined) &&
+            clearSort && {
+              onClick: () => clearSort(),
+              text: _t('columnMenu.clearSort', { defaultMessage: 'Clear sort' }),
+              icon: 'mdi mdi-sort-variant-remove',
+            },
+        ],
+      },
+      {
+        label: _t('columnMenu.column', { defaultMessage: 'Column' }),
+        items: [
+          onFilterColumn && {
+            onClick: onFilterColumn,
+            text: _t('columnMenu.filter', { defaultMessage: 'Filter by this column' }),
+            icon: 'mdi mdi-filter-outline',
+          },
+          allowQuickStats &&
+            isOwnColumn && {
+              onClick: () => (showQuickStats = true),
+              text: _t('columnMenu.quickStats', { defaultMessage: 'Quick stats' }),
+              icon: 'mdi mdi-chart-box-outline',
+              testid: 'ColumnHeaderControl_quickStats',
+            },
+          onHideColumn && {
+            onClick: onHideColumn,
+            text: _t('columnMenu.hide', { defaultMessage: 'Hide column' }),
+            icon: 'mdi mdi-eye-off-outline',
+          },
+          {
+            onClick: () => copyTextToClipboard(column.columnName),
+            text: _t('columnMenu.copyName', { defaultMessage: 'Copy column name' }),
+            icon: 'icon copy',
+          },
+          column.foreignKey && {
+            onClick: openReferencedTable,
+            text: _t('columnMenu.openReferencedTable', {
+              defaultMessage: 'Open {table}',
+              values: { table: column.foreignKey.refTableName },
+            }),
+            icon: 'mdi mdi-table-arrow-right',
+          },
+        ],
+      },
 
       isProApp() &&
         setGrouping &&
-        !driver?.dialect?.disableGroupingForDataType?.(column.dataType) && [
-          { divider: true },
-          { onClick: () => setGrouping('GROUP'), text: 'Group by' },
-          { onClick: () => setGrouping('MAX'), text: 'MAX' },
-          { onClick: () => setGrouping('MIN'), text: 'MIN' },
-          { onClick: () => setGrouping('SUM'), text: 'SUM' },
-          { onClick: () => setGrouping('AVG'), text: 'AVG' },
-          { onClick: () => setGrouping('COUNT'), text: 'COUNT' },
-          { onClick: () => setGrouping('COUNT DISTINCT'), text: 'COUNT DISTINCT' },
-        ],
-
-      isProApp() &&
-        isTypeDateTime(column.dataType) && [
-          { divider: true },
-          { onClick: () => setGrouping('GROUP:YEAR'), text: 'Group by YEAR' },
-          { onClick: () => setGrouping('GROUP:MONTH'), text: 'Group by MONTH' },
-          { onClick: () => setGrouping('GROUP:DAY'), text: 'Group by DAY' },
-        ],
-
-      { divider: true },
-
-      isProApp() &&
-        allowDefineVirtualReferences && { onClick: handleDefineVirtualForeignKey, text: 'Define virtual foreign key' },
-      column.foreignKey &&
-        isProApp() && {
-          onClick: handleCustomizeDescriptions,
-          text: 'Customize description',
+        !driver?.dialect?.disableGroupingForDataType?.(column.dataType) && {
+          label: _t('columnMenu.group', { defaultMessage: 'Group' }),
+          items: [
+            { onClick: () => setGrouping('GROUP'), text: 'Group by', icon: 'mdi mdi-group' },
+            { onClick: () => setGrouping('MAX'), text: 'MAX' },
+            { onClick: () => setGrouping('MIN'), text: 'MIN' },
+            { onClick: () => setGrouping('SUM'), text: 'SUM' },
+            { onClick: () => setGrouping('AVG'), text: 'AVG' },
+            { onClick: () => setGrouping('COUNT'), text: 'COUNT' },
+            { onClick: () => setGrouping('COUNT DISTINCT'), text: 'COUNT DISTINCT' },
+            isTypeDateTime(column.dataType) && [
+              { onClick: () => setGrouping('GROUP:YEAR'), text: 'Group by YEAR' },
+              { onClick: () => setGrouping('GROUP:MONTH'), text: 'Group by MONTH' },
+              { onClick: () => setGrouping('GROUP:DAY'), text: 'Group by DAY' },
+            ],
+          ],
         },
+
+      {
+        label: _t('columnMenu.structure', { defaultMessage: 'Structure' }),
+        items: [
+          canEditStructure && {
+            onClick: () => openColumnPanel(column.columnName),
+            text: _t('columnMenu.editColumn', { defaultMessage: 'Edit column…' }),
+            icon: 'mdi mdi-pencil-outline',
+            testid: 'ColumnHeaderControl_editColumn',
+          },
+          canEditStructure && {
+            onClick: () => openColumnPanel(null),
+            text: _t('columnMenu.addColumn', { defaultMessage: 'Add column…' }),
+            icon: 'icon add-column',
+          },
+          isProApp() &&
+            allowDefineVirtualReferences && {
+              onClick: handleDefineVirtualForeignKey,
+              text: 'Define virtual foreign key',
+              icon: 'icon add-key',
+            },
+          column.foreignKey &&
+            isProApp() && {
+              onClick: handleCustomizeDescriptions,
+              text: 'Customize description',
+              icon: 'icon edit',
+            },
+          canEditStructure && {
+            onClick: handleDeleteColumn,
+            text: _t('columnMenu.deleteColumn', { defaultMessage: 'Delete column…' }),
+            icon: 'icon trash',
+            danger: true,
+            testid: 'ColumnHeaderControl_deleteColumn',
+          },
+        ],
+      },
     ];
   }
 </script>
 
-<div class="header">
+<div class="header" bind:this={domHeader}>
   <div class="label">
     {#if grouping}
       <span class="grouping">
         {grouping == 'COUNT DISTINCT' ? 'distinct' : grouping.toLowerCase()}
       </span>
     {/if}
-    <ColumnLabel {...column} filter={seachInColumns} />
+    <ColumnLabel {...column} {conid} {database} filter={seachInColumns} keyIcons />
 
     {#if _.isString(column.displayedDataType || column.dataType) && !order}
       <span class="data-type" title={column.dataType}>
@@ -139,12 +264,22 @@
       {/if}
     </span>
   {/if}
-  <DropDownButton
-    menu={getMenu}
-    narrow
+  <ColumnHeaderMenu
+    getSections={getMenuSections}
+    title={column.columnName}
+    subtitle={_.isString(column.dataType) ? column.dataType.toLowerCase() : null}
     data-testid={`ColumnHeaderControl_dropdown_${column?.uniqueName}`}
-    circleHover
   />
+  {#if showQuickStats}
+    <ColumnQuickStats
+      {conid}
+      {database}
+      {driver}
+      {column}
+      anchor={domHeader}
+      onClose={() => (showQuickStats = false)}
+    />
+  {/if}
   <div class="horizontal-split-handle resizeHandleControl" use:splitterDrag={'clientX'} on:resizeSplitter />
 </div>
 

@@ -23,6 +23,7 @@ const { extractErrorMessage } = require('dbgate-tools');
 const { getUsageAnalyticsEnvironmentPolicy } = require('../utility/usageAnalyticsPolicy');
 const { isBasicAuthActive } = require('../auth/authCommon');
 const { checkSecureExportFilePath } = require('../utility/security');
+const { getRequestUser } = require('../utility/requestUser');
 const {
   generateTransportEncryptionKey,
   createTransportEncryptor,
@@ -129,6 +130,8 @@ module.exports = {
       logoutUrl,
       permissions,
       login,
+      // the signed-in user to show and to filter "my" query history by - a label, not a login
+      requestUser: getRequestUser(req),
       // ...additionalConfigProps,
       isBasicAuth: !!process.env.BASIC_AUTH,
       isAdminLoginForm: !!(

@@ -252,6 +252,11 @@ export const themeDarkColors = {
   '--theme-designer-close-background-active': 'var(--theme-ui-border-strong)',
   '--theme-designer-drag-column-background': 'color-mix(in srgb, var(--tw-color-yellow-500) 22%, var(--theme-ui-bg))',
   '--theme-designer-select-column-background': 'var(--theme-ui-surface-2)',
+  '--theme-schema-visualizer-grid-dot': 'color-mix(in srgb, #fff 9%, transparent)',
+  '--theme-schema-visualizer-card-header-background': 'var(--theme-ui-surface-2)',
+  '--theme-schema-visualizer-card-shadow':
+    '0 1px 2px color-mix(in srgb, #000 30%, transparent), 0 10px 28px -10px color-mix(in srgb, #000 55%, transparent)',
+  '--theme-schema-visualizer-relation-stroke': 'oklch(0.47 0.02 262)',
   '--theme-statusbar-background': 'var(--theme-ui-rail)',
   '--theme-statusbar-foreground': 'var(--theme-ui-text-secondary)',
   '--theme-statusbar-border': '1px solid var(--theme-ui-border-subtle)',

@@ -116,6 +116,11 @@
         return [
           ...defaultDatabaseObjectAppObjectActions['tables'],
           {
+            label: _t('dbObject.showDetails', { defaultMessage: 'Show details' }),
+            tab: 'TableDetailsTab',
+            icon: 'img table-details',
+          },
+          {
             divider: true,
           },
           isProApp() && {

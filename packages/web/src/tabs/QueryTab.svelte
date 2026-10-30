@@ -187,6 +187,7 @@
   import WidgetColumnBar from '../widgets/WidgetColumnBar.svelte';
   import WidgetsInnerContainer from '../widgets/WidgetsInnerContainer.svelte';
   import WidgetColumnBarItem from '../widgets/WidgetColumnBarItem.svelte';
+  import { consumePendingQueryRun, pendingQueryRuns } from '../query/runQueryInTab';
 
   export let tabid;
   export let conid;
@@ -245,6 +246,9 @@
   let splitterInitialValue = undefined;
   let autoDetectCharts = false;
   let domResultTabs;
+  // the query history entry of the running query, written when the run ends so that it can say
+  // how long the run took and how many rows came back
+  let runningHistoryEntry = null;
 
   const queryRowsLimitLocalStorageKey = `tabdata_limitRows_${tabid}`;
   function getInitialRowsLimit() {
@@ -284,6 +288,7 @@
 
   onDestroy(() => {
     clearInterval(intervalId);
+    writeRunningHistoryEntry();
   });
 
   $: connection = useConnectionInfo({ conid });
@@ -298,10 +303,12 @@
       apiOn(`session-done-${sid}`, handleSessionDone);
       apiOn(`session-closed-${sid}`, handleSessionClosed);
       apiOn(`session-changedb-${sid}`, handleChangedDatabase);
+      apiOn(`session-info-${sid}`, handleSessionInfo);
       return () => {
         apiOff(`session-done-${sid}`, handleSessionDone);
         apiOff(`session-closed-${sid}`, handleSessionClosed);
         apiOff(`session-changedb-${sid}`, handleChangedDatabase);
+        apiOff(`session-info-${sid}`, handleSessionInfo);
       };
     }
     return () => {};
@@ -437,10 +444,12 @@
 
     busy = true;
     timerLabel.start();
+    writeRunningHistoryEntry();
 
     if (driver?.singleConnectionOnly) {
       sessionId = uuidv1();
       await tick();
+      startRunningHistoryEntry(sql);
       await apiCall('database-connections/execute-session-query', {
         sesid: sessionId,
         conid,
@@ -463,6 +472,7 @@
       if (driver?.implicitTransactions) {
         isInTransaction = true;
       }
+      startRunningHistoryEntry(sql);
       await apiCall('sessions/execute-query', {
         sesid,
         sql,
@@ -472,14 +482,30 @@
         autoDetectCharts,
       });
     }
-    await apiCall('query-history/write', {
-      data: {
-        sql,
-        conid,
-        database,
-        date: new Date().getTime(),
-      },
+  }
+
+  // started before the query is sent - its first messages can arrive before the request returns
+  function startRunningHistoryEntry(sql) {
+    runningHistoryEntry = { sql, conid, database, date: new Date().getTime() };
+  }
+
+  function writeRunningHistoryEntry() {
+    const entry = runningHistoryEntry;
+    if (!entry) return;
+    runningHistoryEntry = null;
+    apiCall('query-history/write', {
+      data: { ...entry, durationMs: new Date().getTime() - entry.date },
     });
+  }
+
+  function handleSessionInfo(info) {
+    if (!runningHistoryEntry) return;
+    if (info?.rowCount != null) {
+      runningHistoryEntry.rowCount = (runningHistoryEntry.rowCount ?? 0) + info.rowCount;
+    }
+    if (info?.severity == 'error') {
+      runningHistoryEntry.failed = true;
+    }
   }
 
   async function executeControlCommand(command) {
@@ -517,6 +543,7 @@
     await apiCall('sessions/kill', {
       sesid: sessionId,
     });
+    writeRunningHistoryEntry();
     sessionId = null;
     isInTransaction = false;
     busy = false;
@@ -621,6 +648,7 @@
   };
 
   const handleSessionDone = () => {
+    writeRunningHistoryEntry();
     busy = false;
     if (isAutocommit) {
       isInTransaction = false;
@@ -662,6 +690,13 @@
       }
     },
   });
+
+  // "Run" in the saved queries or history panel (runQueryInTab), once the query and its
+  // connection have loaded
+  $: if ($pendingQueryRuns.includes(tabid) && !$editorState.isLoading && $connection && !busy) {
+    consumePendingQueryRun(tabid);
+    if ($editorValue && hasConnection()) executeCore($editorValue, 0, 'all');
+  }
 
   function handleChangeErrors(errors) {
     errorMessages = errors;
