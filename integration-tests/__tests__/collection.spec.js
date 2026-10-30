@@ -1,5 +1,7 @@
 const requireEngineDriver = require('dbgate-api/src/utility/requireEngineDriver');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const stream = require('stream');
 const { mongoDbEngine, dynamoDbEngine } = require('../engines');
 const tableWriter = require('dbgate-api/src/shell/tableWriter');
@@ -13,7 +15,11 @@ function randomCollectionName() {
 const documentEngines = [
     { label: 'MongoDB', engine: mongoDbEngine },
     { label: 'DynamoDB', engine: dynamoDbEngine },
-];
+].filter(({ engine }) => {
+    // the DynamoDB plugin is premium only, so it is not in the community repo
+    const plugin = engine.connection.engine.split('@')[1];
+    return fs.existsSync(path.join(__dirname, '../../plugins', plugin));
+});
 
 async function connectEngine(engine) {
     const driver = requireEngineDriver(engine.connection);
