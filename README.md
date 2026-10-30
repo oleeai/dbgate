@@ -43,6 +43,8 @@ Olee AI's changes sit on top of upstream DbGate releases (currently **7.3.3**, c
 **In review / not on `master` yet**
 
 - Primary-key and foreign-key icons in the data grid column headers; the link icon opens the referenced table ([#4](https://github.com/oleeai/dbgate/pull/4), merged into the #3 branch after #3 landed, so it still needs to reach `master`)
+- Table details tab: indexes, triggers, RLS policies, enums and check constraints, each with its SQL ([#5](https://github.com/oleeai/dbgate/pull/5), in review)
+- Paging footer for table data: row count, page navigation, rows per page and quick CSV/JSON export ([#6](https://github.com/oleeai/dbgate/pull/6), in review)
 
 ## Run with Docker
 
