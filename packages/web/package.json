@@ -66,6 +66,7 @@
     "@langchain/langgraph": "^1.5.0",
     "@langchain/openai": "^1.6.2",
     "@messageformat/core": "^3.4.1",
+    "@xyflow/svelte": "^0.1.39",
     "chartjs-plugin-zoom": "^2.2.0",
     "date-fns": "^4.4.0",
     "debug": "^4.4.3",
