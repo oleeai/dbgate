@@ -415,6 +415,7 @@
   import _, { map } from 'lodash';
   import registerCommand from '../commands/registerCommand';
   import ColumnHeaderControl from './ColumnHeaderControl.svelte';
+  import ColumnAddButton from './ColumnAddButton.svelte';
   import DataGridRow from './DataGridRow.svelte';
   import { getFilterValueExpression } from 'dbgate-filterparser';
   import stableStringify from 'json-stable-stringify';
@@ -540,6 +541,8 @@
   export const activator = createActivator('DataGridCore', activateOnTabVisible);
 
   export let dataEditorTypesBehaviourOverride = null;
+  // Set by the table data grid when the user may alter the table from the column headers
+  export let allowColumnStructureEdit = false;
 
   let rowPixelOffset = 0;
   let columnPixelOffset = 0;
@@ -1410,6 +1413,11 @@
     columnSizes.getVisibleScrollSizeSum() - Math.max(0, gridScrollAreaWidth || 0) + HORIZONTAL_SCROLL_END_PADDING
   );
   $: trailingHorizontalScrollPadding = maxHorizontalPixelPosition > 0 ? HORIZONTAL_SCROLL_END_PADDING : 0;
+  // The "+" sits right after the last column, so only show it once that column is in view
+  $: showAddColumnButton =
+    allowColumnStructureEdit &&
+    !!display?.baseTable &&
+    _.last(visibleRealColumns)?.colIndex == columnSizes.realCount - 1;
 
   $: {
     if (onLoadNextData && firstVisibleRowScrollIndex + visibleRowCountUpperBound >= grider.rowCount && rowHeight > 0) {
@@ -2469,14 +2477,41 @@
                   seachInColumns={display.config?.searchInColumns}
                   onReload={refresh}
                   driver={display?.driver}
+                  onHideColumn={() => display.setColumnVisibility(col.uniquePath, false)}
+                  onFilterColumn={display.filterable ? () => domFilterControlsRef.get()[col.uniqueName]?.focus() : null}
+                  allowQuickStats={!!display?.baseTableOrView &&
+                    !!display?.driver?.databaseEngineTypes?.includes('sql')}
+                  allowStructureEdit={allowColumnStructureEdit && !!display?.baseTable}
                 />
               </td>
             {/each}
+            {#if showAddColumnButton && trailingHorizontalScrollPadding == 0}
+              <td class="add-column-cell">
+                <ColumnAddButton
+                  {conid}
+                  {database}
+                  table={display.baseTable}
+                  driver={display.driver}
+                  onSaved={refresh}
+                />
+              </td>
+            {/if}
             {#if trailingHorizontalScrollPadding > 0}
               <td
                 class="horizontal-scroll-padding-cell"
+                class:add-column-cell={showAddColumnButton}
                 style={`width:${trailingHorizontalScrollPadding}px; min-width:${trailingHorizontalScrollPadding}px; max-width:${trailingHorizontalScrollPadding}px`}
-              ></td>
+              >
+                {#if showAddColumnButton}
+                  <ColumnAddButton
+                    {conid}
+                    {database}
+                    table={display.baseTable}
+                    driver={display.driver}
+                    onSaved={refresh}
+                  />
+                {/if}
+              </td>
             {/if}
           </tr>
           {#if display.filterable}
@@ -2765,6 +2800,13 @@
     margin: 0;
     border: 0;
     background: var(--theme-datagrid-background);
+  }
+  .add-column-cell {
+    width: 36px;
+    padding: 0;
+    border-top: var(--theme-datagrid-border-horizontal);
+    border-bottom: var(--theme-datagrid-border-horizontal);
+    background: var(--theme-datagrid-headercell-background);
   }
   .focus-field {
     position: absolute;
