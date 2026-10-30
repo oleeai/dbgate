@@ -115,7 +115,7 @@
         {grouping == 'COUNT DISTINCT' ? 'distinct' : grouping.toLowerCase()}
       </span>
     {/if}
-    <ColumnLabel {...column} filter={seachInColumns} />
+    <ColumnLabel {...column} {conid} {database} filter={seachInColumns} keyIcons />
 
     {#if _.isString(column.displayedDataType || column.dataType) && !order}
       <span class="data-type" title={column.dataType}>
