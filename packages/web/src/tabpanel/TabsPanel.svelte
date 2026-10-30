@@ -739,8 +739,10 @@
 
     {#if !isProApp()}
       <div class="brand-badge" title="DbGate, maintained by Olee AI" data-testid="TabsPanel_brandBadge">
-        <OleeAiLogo height={11} />
-        <span class="brand-times">×</span>
+        <OleeAiLogo height={13} />
+        <svg class="brand-times" width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
+          <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        </svg>
         <span class="brand-dbgate">
           <img src="logo192.png" alt="" width="14" height="14" />
           DbGate
@@ -800,7 +802,6 @@
     align-items: center;
     gap: 7px;
     height: 24px;
-    margin-top: 2px;
     margin-right: 6px;
     padding: 0 10px 0 11px;
     border-radius: 999px;
@@ -814,9 +815,9 @@
     cursor: default;
   }
   .brand-times {
+    display: block;
+    flex-shrink: 0;
     color: var(--theme-ui-text-tertiary);
-    font-size: 11px;
-    line-height: 1;
   }
   .brand-dbgate {
     display: flex;

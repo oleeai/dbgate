@@ -1,13 +1,14 @@
 <script lang="ts">
-  // the olee.ai wordmark, in the brand blue
-  export let height = 12;
+  // The olee.ai wordmark, in the brand blue. The box is 20 units taller than the glyphs at the bottom, so its
+  // middle is the middle of the lower-case letters and the wordmark sits optically centered next to text and icons.
+  export let height = 14;
 </script>
 
 <svg
   class="olee-ai-logo"
   {height}
-  width={(height * 572) / 120}
-  viewBox="0 0 572 120"
+  width={(height * 572) / 140}
+  viewBox="0 0 572 140"
   fill="none"
   xmlns="http://www.w3.org/2000/svg"
   role="img"
