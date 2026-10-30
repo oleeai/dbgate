@@ -347,6 +347,7 @@
   import { getBoolSettingsValue } from '../settings/settingsTools';
   import NewObjectModal from '../modals/NewObjectModal.svelte';
   import { isProApp } from '../utility/proTools';
+  import OleeAiLogo from '../icons/OleeAiLogo.svelte';
   export let multiTabIndex;
   export let shownTab;
   export let showDbRow = false;
@@ -738,9 +739,12 @@
 
     {#if !isProApp()}
       <div class="brand-badge" title="DbGate, maintained by Olee AI" data-testid="TabsPanel_brandBadge">
-        <span class="brand-olee">Olee AI</span>
+        <OleeAiLogo height={11} />
         <span class="brand-times">×</span>
-        <span class="brand-dbgate">DbGate</span>
+        <span class="brand-dbgate">
+          <img src="logo192.png" alt="" width="14" height="14" />
+          DbGate
+        </span>
       </div>
     {/if}
 
@@ -794,34 +798,38 @@
   .brand-badge {
     display: flex;
     align-items: center;
-    gap: 5px;
-    height: 22px;
-    margin-top: 3px;
+    gap: 7px;
+    height: 24px;
+    margin-top: 2px;
     margin-right: 6px;
-    padding: 0 10px;
+    padding: 0 10px 0 11px;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--theme-ui-accent) 35%, transparent);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--theme-ui-accent) 16%, transparent),
-      color-mix(in srgb, var(--theme-ui-accent) 8%, transparent)
-    );
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    border: 1px solid var(--theme-ui-border);
+    background: var(--theme-ui-surface-2);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.08),
+      inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
     white-space: nowrap;
     user-select: none;
     cursor: default;
   }
-  .brand-olee {
-    color: var(--theme-ui-accent-strong);
-  }
   .brand-times {
     color: var(--theme-ui-text-tertiary);
-    font-weight: 400;
+    font-size: 11px;
+    line-height: 1;
   }
   .brand-dbgate {
-    color: var(--theme-ui-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--theme-ui-text);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .brand-dbgate img {
+    display: block;
+    border-radius: 50%;
   }
   .icon-button:hover {
     color: var(--theme-tabs-panel-active-foreground);
@@ -838,7 +846,7 @@
   }
 
   .tabs-brand-badge {
-    right: 170px;
+    right: 200px;
   }
   .tabs.can-split {
     right: 60px;
