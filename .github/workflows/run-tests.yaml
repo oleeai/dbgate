@@ -1,14 +1,11 @@
-# --------------------------------------------------------------------------------------------
-# This file is generated. Do not edit manually
-# --------------------------------------------------------------------------------------------
 name: Integration and unit tests
 'on':
   push:
     branches:
       - master
-      - develop
-      - feature/**
-      - hotfix/**
+  pull_request:
+    branches:
+      - master
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -17,61 +14,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Use Node.js 24.x
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
           node-version: 24.x
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Checkout dbgate/dbgate-pro
-        uses: actions/checkout@v2
-        with:
-          repository: dbgate/dbgate-pro
-          token: ${{ secrets.GH_TOKEN }}
-          path: dbgate-pro
-          ref: d8326717ec10eb714bf1bae0242e0d9dd4675c20
-      - name: Diflow install
-        run: npm install -g diflow
-      - name: Merge dbgate/dbgate-pro
-        shell: bash
-        run: |
-          mkdir ../dbgate-pro
-          mv dbgate-pro/* ../dbgate-pro/
-          rm -rf dbgate-pro
-          diflow fsmerge -b . -d ../dbgate-pro -m ../dbgate-merged
       - name: yarn install
         run: |
-          cd ../dbgate-merged
           yarn install
       - name: Integration tests
         run: |
-          cd ../dbgate-merged
           cd integration-tests
           yarn test:ci
       - name: Filter parser tests
         if: always()
         run: |
-          cd ../dbgate-merged
           cd packages/filterparser
           yarn test:ci
       - name: Datalib (perspective) tests
         if: always()
         run: |
-          cd ../dbgate-merged
           cd packages/datalib
           yarn test:ci
       - name: Tools tests
         if: always()
         run: |
-          cd ../dbgate-merged
           cd packages/tools
           yarn test:ci
       - name: API tests
         if: always()
         run: |
-          cd ../dbgate-merged
           cd packages/api
-          yarn test:ci
+          # storage, team files and auth provider tests need the premium sources, which are not in this repo
+          yarn test:ci \
+            --testPathIgnorePatterns '/(storage|teamFiles|teamFilesExport|authProvider)\.test\.js$' \
+            -t '^(?!(restConnections|storage|teamFiles)\.js/)'
     services:
       postgres-integr:
         image: postgres
@@ -133,7 +111,3 @@ jobs:
         volumes:
           - mongo-data:/data/db
           - mongo-config:/data/configdb
-      dynamodb:
-        image: amazon/dynamodb-local
-        ports:
-          - 8000:8000
