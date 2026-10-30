@@ -347,7 +347,6 @@
   import { getBoolSettingsValue } from '../settings/settingsTools';
   import NewObjectModal from '../modals/NewObjectModal.svelte';
   import { isProApp } from '../utility/proTools';
-  import { openWebLink } from '../utility/simpleTools';
   export let multiTabIndex;
   export let shownTab;
   export let showDbRow = false;
@@ -598,7 +597,7 @@
   <div
     class="tabs"
     class:can-split={allowSplitTab && isProApp()}
-    class:tabs-upgrade-button={!isProApp()}
+    class:tabs-brand-badge={!isProApp()}
     on:wheel={handleTabsWheel}
     bind:this={domTabs}
   >
@@ -738,17 +737,10 @@
     {/if}
 
     {#if !isProApp()}
-      <div
-        class="upgrade-button"
-        on:click={() => {
-          openWebLink(
-            `https://www.dbgate.io/purchase/${isElectronAvailable() ? 'premium' : 'team-premium'}/?utm_campaign=premiumUpgradeButton`
-          );
-        }}
-        title="Upgrade to Premium"
-        data-testid="TabsPanel_buttonUpgrade"
-      >
-        <FontIcon icon="icon premium" /> Upgrade
+      <div class="brand-badge" title="DbGate, maintained by Olee AI" data-testid="TabsPanel_brandBadge">
+        <span class="brand-olee">Olee AI</span>
+        <span class="brand-times">×</span>
+        <span class="brand-dbgate">DbGate</span>
       </div>
     {/if}
 
@@ -799,21 +791,37 @@
   .icon-button:hover {
     background-color: var(--theme-ui-hover);
   }
-  .upgrade-button {
-    background: var(--theme-ui-accent);
-    border: 1px solid var(--theme-ui-accent);
-    border-radius: 999px;
-    color: var(--theme-ui-accent-contrast);
-    cursor: pointer;
-    font-weight: 500;
-    padding: 3px 10px;
+  .brand-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
     margin-top: 3px;
-    margin-right: 3px;
+    margin-right: 6px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--theme-ui-accent) 35%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--theme-ui-accent) 16%, transparent),
+      color-mix(in srgb, var(--theme-ui-accent) 8%, transparent)
+    );
     font-size: 11px;
-    transition: background-color var(--dim-transition-fast);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    user-select: none;
+    cursor: default;
   }
-  .upgrade-button:hover {
-    background: var(--theme-ui-accent-hover);
+  .brand-olee {
+    color: var(--theme-ui-accent-strong);
+  }
+  .brand-times {
+    color: var(--theme-ui-text-tertiary);
+    font-weight: 400;
+  }
+  .brand-dbgate {
+    color: var(--theme-ui-text-secondary);
   }
   .icon-button:hover {
     color: var(--theme-tabs-panel-active-foreground);
@@ -829,8 +837,8 @@
     bottom: 0;
   }
 
-  .tabs-upgrade-button {
-    right: 110px;
+  .tabs-brand-badge {
+    right: 170px;
   }
   .tabs.can-split {
     right: 60px;
