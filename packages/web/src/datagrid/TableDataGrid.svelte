@@ -32,6 +32,7 @@
   import { getBoolSettingsValue } from '../settings/settingsTools';
   import { getDictionaryDescription } from '../utility/dictionaryDescriptionTools';
   import { isProApp } from '../utility/proTools';
+  import hasPermission from '../utility/hasPermission';
 
   export let conid;
   export let database;
@@ -180,6 +181,7 @@
       onReferenceSourceChanged={reference ? handleReferenceSourceChanged : null}
       multipleGridsOnTab={multipleGridsOnTab || !!reference}
       allowDefineVirtualReferences
+      allowColumnStructureEdit={!forceReadOnly && !$connection?.isReadOnly && hasPermission('dbops/model/edit')}
       onReferenceClick={value => {
         if (value && value.referenceId && reference && reference.referenceId == value.referenceId) {
           // reference not changed
