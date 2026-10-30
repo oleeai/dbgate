@@ -1,247 +1,155 @@
-[![NPM version](https://img.shields.io/npm/v/dbgate-serve.svg)](https://www.npmjs.com/package/dbgate-serve)
-![GitHub All Releases](https://img.shields.io/github/downloads/dbgate/dbgate/total)
-[![dbgate](https://snapcraft.io/dbgate/badge.svg)](https://snapcraft.io/dbgate)
-[![dbgate](https://snapcraft.io/dbgate/trending.svg?name=0)](https://snapcraft.io/dbgate)
-[![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
+<p align="center">
+  <a href="https://olee.ai"><img src="img/olee-ai.svg" alt="olee.ai" height="36"></a>
+  &nbsp;&nbsp;<strong>×</strong>&nbsp;&nbsp;
+  <a href="https://github.com/dbgate/dbgate"><img src="app/icon.png" alt="DbGate" height="44"></a>
+</p>
 
-<img src="https://raw.githubusercontent.com/dbgate/dbgate/master/app/icon.png" width="64" align="right"/>
+<h1 align="center">Olee AI × DbGate</h1>
 
-# DbGate - (no)SQL database client
+<p align="center">
+  Olee AI's fork of <a href="https://github.com/dbgate/dbgate">DbGate</a>, the web database manager, with a redesigned table editor, SQL editor and sidebar.
+</p>
 
+> [!IMPORTANT]
 > **Olee AI internal use only. Not for distribution.** See [OLEE-INTERNAL-USE.md](OLEE-INTERNAL-USE.md).
+>
+> DbGate is created by Jan Prochazka and the DbGate contributors and is licensed under the
+> [GNU General Public License v3.0](LICENSE). That license applies in full to this fork, including Olee AI's changes.
+> For the original project, downloads and documentation, see [dbgate/dbgate](https://github.com/dbgate/dbgate) and [docs.dbgate.io](https://docs.dbgate.io).
 
-DbGate is cross-platform database manager.
-It's designed to be simple to use and effective, when working with more databases simultaneously.
-But there are also many advanced features like schema compare, visual query designer, chart visualisation or batch export and import.
+<p align="center">
+  <a href="img/olee-table-editor.png"><img src="img/olee-table-editor.png" alt="Table editor with the redesigned sidebar, dark theme" width="900"></a>
+</p>
 
-DbGate is licensed under GPL-3.0 license and is free to use for any purpose.
+## What this fork adds
 
-- Try it online - [demo.dbgate.cloud](https://demo.dbgate.cloud) - online demo application
-- **Download** application for Windows, Linux or Mac from [dbgate.io](https://www.dbgate.io/download/)
-- Looking for DbGate Community? **Download** from [dbgate.io](https://www.dbgate.io/download-community/)
-- Run web version as [NPM package](https://www.npmjs.com/package/dbgate-serve) or as [docker image](https://hub.docker.com/r/dbgate/dbgate)
-- Use nodeJs [scripting interface](https://docs.dbgate.io/scripting) ([API documentation](https://docs.dbgate.io/apidoc))
+Olee AI's changes sit on top of upstream DbGate releases (currently **7.3.3**, community edition).
+
+**On `master`**
+
+- **Olee blue redesign** of the app shell, table editor and SQL editor ([#1](https://github.com/oleeai/dbgate/pull/1))
+  - Olee brand blue on cool neutrals, light and dark themes, all colors from a small set of base tokens
+  - Connection switcher at the top of the sidebar, source-list style sidebar, expandable navigation rail
+  - Table editor toolbar: "Filter rows" field, Insert row as the main action, Save/Revert only when there are changes
+  - SQL Editor rail entry with saved queries and query history
+- **Sidebar redesign** ([#3](https://github.com/oleeai/dbgate/pull/3))
+  - Connection switcher with engine logos
+  - Searchable schema picker with object counts
+  - "New table" button, "Search tables…" row and ⋮ menus on rows
+  - olee.ai × DbGate badge in the tab bar
+  - Fix: the object list no longer gets stuck on "Loading database structure" after a reload or a lost event stream
+- **CI** ([#2](https://github.com/oleeai/dbgate/pull/2)): runs the community test suites and publishes the Docker image to GHCR (see [CI and releases](#ci-and-releases))
+
+**In review / not on `master` yet**
+
+- Primary-key and foreign-key icons in the data grid column headers; the link icon opens the referenced table ([#4](https://github.com/oleeai/dbgate/pull/4), merged into the #3 branch after #3 landed, so it still needs to reach `master`)
+
+## Run with Docker
+
+The image is published to `ghcr.io/oleeai/dbgate` and is **private**. Log in with a GitHub token that has the `read:packages` scope:
+
+```sh
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
+```
+
+It runs like the upstream DbGate image: the web UI listens on port `3000`, settings live in `/root/.dbgate`, and connections can be defined with environment variables.
+
+```sh
+docker run -d --name dbgate \
+  -p 3000:3000 \
+  -v dbgate-data:/root/.dbgate \
+  -e CONNECTIONS=pg \
+  -e LABEL_pg="Postgres" \
+  -e ENGINE_pg=postgres@dbgate-plugin-postgres \
+  -e SERVER_pg=db.example.com \
+  -e PORT_pg=5432 \
+  -e USER_pg=postgres \
+  -e PASSWORD_pg=change-me \
+  ghcr.io/oleeai/dbgate:latest
+```
+
+Or with Docker Compose:
+
+```yaml
+services:
+  dbgate:
+    image: ghcr.io/oleeai/dbgate:latest
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      - dbgate-data:/root/.dbgate
+    environment:
+      CONNECTIONS: pg
+      LABEL_pg: Postgres
+      ENGINE_pg: postgres@dbgate-plugin-postgres
+      SERVER_pg: db.example.com
+      PORT_pg: 5432
+      USER_pg: postgres
+      PASSWORD_pg: ${PG_PASSWORD}
+
+volumes:
+  dbgate-data:
+```
+
+Then open http://localhost:3000. Add more connections by listing more ids in `CONNECTIONS` (`CONNECTIONS=pg,mysql`) with their own `LABEL_<id>`, `ENGINE_<id>`, … variables. The image has no login by default, so put it behind authentication or a private network. All options (logins, SSH tunnels, `WEB_ROOT`, …) are in the upstream [environment variable docs](https://docs.dbgate.io/env-vars).
+
+## Develop
+
+Requires Node.js 24+ and Yarn 1.
+
+```sh
+yarn          # install packages, build the TypeScript libraries and plugins
+yarn start    # API on http://localhost:3000, web UI on http://localhost:5001
+```
+
+For more control, run `yarn start:api`, `yarn start:web` and `yarn lib` (watch libraries and plugins) in three terminals. Type-check with `yarn ts` and format with `yarn prettier`.
+
+Tests:
+
+```sh
+yarn workspace dbgate-tools test          # unit tests (also filterparser, datalib, api)
+cd integration-tests && yarn test:local   # integration tests, needs Docker
+```
+
+[CLAUDE.md](CLAUDE.md) describes the monorepo layout, the API and web architecture, plugins and code conventions.
+
+## CI and releases
+
+| Workflow | Runs on | What it does |
+|---|---|---|
+| [`run-tests.yaml`](.github/workflows/run-tests.yaml) | pushes and PRs to `master` | Integration tests (Postgres service) and the unit tests of filterparser, datalib, tools and api. Suites that need DbGate Premium sources are skipped. |
+| [`docker-image.yaml`](.github/workflows/docker-image.yaml) | PRs, pushes to `master`, `vX.Y.Z` tags | PRs: builds the image (amd64) without pushing. `master` and tags: publish `ghcr.io/oleeai/dbgate` for `amd64` and `arm64`. |
+
+Image tags:
+
+| Tag | Source |
+|---|---|
+| `latest` | latest commit on `master` |
+| `sha-<commit>` | each commit on `master` (short SHA), for pinning and rollbacks |
+| `X.Y.Z` | a `vX.Y.Z` git tag |
+
+The workflows use the built-in `GITHUB_TOKEN`; no extra secrets are needed. Upstream's release workflows (Electron apps, npm, Docker Hub, premium builds) are removed in this fork.
+
+## Syncing with upstream
+
+```sh
+git remote add upstream https://github.com/dbgate/dbgate.git   # once
+git fetch upstream --tags
+git switch -c sync/upstream-vX.Y.Z origin/master
+git merge vX.Y.Z                                              # an upstream release tag
+```
+
+Resolve conflicts in favor of Olee's changes, delete any upstream workflows the merge brings back, run the tests, then open a PR to `master`. Merge release tags, not upstream `master`.
 
 ## Supported databases
 
-- MySQL
-- MariaDB
-- PostgreSQL
-- CockroachDB
-- Amazon Redshift (Premium)
-- SQL Server
-- Oracle
-- SQLite
-- libSQL/Turso (Premium)
-- Cloudflare D1 (Premium)
-- DuckDB
-- Firebird
-- ClickHouse
-- Apache Cassandra
-- MongoDB
-- MongoDB 4 - Legacy (Premium)
-- Redis
-- Azure Cosmos DB (Premium)
-- Amazon DynamoDB (Premium)
-- Firestore (Premium)
+MySQL, MariaDB, PostgreSQL, CockroachDB, SQL Server, Oracle, SQLite, DuckDB, Firebird, ClickHouse, Apache Cassandra, MongoDB and Redis. Files: CSV, Excel, XML and DBF.
 
-## Supported APIs (Premium)
+This fork is built from the DbGate community sources, so engines and APIs that need DbGate Premium (for example Amazon Redshift, DynamoDB, Cosmos DB, Firestore, GraphQL/OData/OpenAPI) are not included.
 
-- GraphQL
-- OData
-- OpenAPI (REST)
+For the full feature list, plugins, scripting and everything else, see the [upstream README](https://github.com/dbgate/dbgate#readme) and [docs.dbgate.io](https://docs.dbgate.io).
 
-<a href="https://raw.githubusercontent.com/dbgate/dbgate/master/img/screenshot1.png">
-    <img src="https://raw.githubusercontent.com/dbgate/dbgate/master/img/screenshot1.png" width="400"/>
-</a>
-<a href="https://raw.githubusercontent.com/dbgate/dbgate/master/img/screenshot2.png">
-    <img src="https://raw.githubusercontent.com/dbgate/dbgate/master/img/screenshot2.png" width="400"/>
-</a>
-<a href="https://raw.githubusercontent.com/dbgate/dbgate/master/img/screenshot4.png">
-    <img src="https://raw.githubusercontent.com/dbgate/dbgate/master/img/screenshot4.png" width="400"/>
-</a>
-<a href="https://raw.githubusercontent.com/dbgate/dbgate/master/img/screenshot3.png">
-    <img src="https://raw.githubusercontent.com/dbgate/dbgate/master/img/screenshot3.png" width="400"/>
-</a>
+## License
 
-<!-- ![Screenshot](https://raw.githubusercontent.com/dbgate/dbgate/master/screenshot.png) -->
-
-## Features
-
-- Browse table data with many filtering options, Excel-like filters, multi-value filters
-- Table data editing, with SQL change script preview
-- Edit table schema, indexes, primary and foreign keys
-- Compare and synchronize database structure
-- ER diagram
-- Light and dark theme, next themes available from DbGate Cloud
-- Huge support for work with related data - master/detail views, foreign key lookups, expanding columns from related tables in flat data view
-- Query designer - visual SQL query builder without writing SQL code. Complex conditions like WHERE NOT EXISTS.
-- Query perspectives – innovative nested table view over complex relational data, something like query designer on MongoDB databases
-- Form view for comfortable work with tables with many columns
-- JSON view on MongoDB collections
-- Explore tables, views, procedures, functions, MongoDB collections
-- SQL editor
-  - execute SQL script
-  - SQL code formatter
-  - SQL code completion
-  - Add SQL LEFT/INNER/RIGHT join utility
-- Mongo JavaScript editor, execute Mongo script (with NodeJs syntax)
-- Redis tree view, generate script from keys, run Redis script
-- Runs as application for Windows, Linux and Mac. Or in Docker container on server and in web Browser on client.
-- Import, export from/to CSV, Excel, JSON, NDJSON, XML, DBF
-- Archives - backup your data in NDJSON files on local filesystem (or on DbGate server, when using web application)
-- NDJSON data viewer and editor - browse NDJSON data, edit data and structure directly on NDJSON files. Works also for big NDSON files
-- Charts, export chart to HTML page
-- AI powered database chat
-- Show GEO data on map, export map to HTML page
-- For detailed info, how to run DbGate in docker container, visit [docker hub](https://hub.docker.com/r/dbgate/dbgate)
-- Extensible plugin architecture
-
-## One-Click Deploy
-
-<a href="https://repocloud.io/details/DbGate/"><img src="https://d16t0pc4846x52.cloudfront.net/deploylobe.svg" alt="Deploy on RepoCloud" height="42"></a>
-<a href="https://railway.com/deploy/dbgate"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="42"></a>
-<a href="https://elest.io/open-source/dbgate"><img src="https://elest.io/images/logos/deploy-to-elestio-btn.png" alt="Deploy on Elestio" height="42"></a>
-<a href="https://template.sealos.io/deploy?templateName=dbgate"><img src="https://raw.githubusercontent.com/labring-actions/templates/main/Deploy-on-Sealos.svg" alt="Deploy on Sealos" height="42"></a>
-
-## How to contribute
-
-Any contributions are welcome. If you want to contribute without coding, consider following:
-
-- Tell your friends about DbGate or share on social networks - when more people will use DbGate, it will grow to be better
-- Purchase a [DbGate Premium](https://www.dbgate.io/purchase/premium/) license
-- Create issue, if you find problem in app, or you have idea to new feature. If issue already exists, you could leave comment on it, to prioritise most wanted issues
-- Create some tutorial video on [youtube](https://www.youtube.com/playlist?list=PLCo7KjCVXhr0RfUSjM9wJMsp_ShL1q61A)
-- Become a backer on [GitHub sponsors](https://github.com/sponsors/dbgate) or [Open collective](https://opencollective.com/dbgate)
-- Add a SQL script to [Public Knowledge Base](https://github.com/dbgate/dbgate-knowledge-base)
-- Where a small coding is acceptable for you, you could [create plugin](https://docs.dbgate.io/plugin-development)
-- Create a new custom theme and share it on [DbGate Cloud](https://github.com/dbgate/dbgate-knowledge-base/tree/master/folder-Themes)
-
-Thank you!
-
-## Why is DbGate different
-
-There are many database managers now, so why DbGate?
-
-- Works everywhere - Windows, Linux, Mac, Web browser (+mobile web is planned), without compromises in features
-- Based on standalone NPM packages, scripts can be run without DbGate (example - [CSV export](https://www.npmjs.com/package/dbgate-plugin-csv) )
-- Many data browsing functions based using foreign keys - master/detail, expand columns, expandable form view
-
-## Design goals
-
-- Application simplicity - DbGate takes the best and only the best from old DbGate, [DatAdmin](https://www.softpedia.com/get/Internet/Servers/Database-Utils/DatAdmin-Personal.shtml), [DbMouse](https://www.softpedia.com/get/Internet/Servers/Database-Utils/DbMouse.shtml) and [SQL Database Studio](https://en.wikipedia.org/wiki/SQL_Database_Studio)
-- Minimal dependencies
-  - Frontend - Svelte
-  - Backend - NodeJs, ExpressJs, database connection drivers
-  - JavaScript + TypeScript
-  - App - electron
-- Platform independent - runs as web application in single docker container on server, or as application using Electron platform on Linux, Windows and Mac
-
-<!-- ## Plugins
-Plugins are standard NPM packages published on [npmjs.com](https://www.npmjs.com).
-See all [existing DbGate plugins](https://www.npmjs.com/search?q=keywords:dbgateplugin).
-Visit [dbgate generator homepage](https://github.com/dbgate/generator-dbgate) to see, how to create your own plugin.
-
-Currently following extensions can be implemented using plugins:
-- File format parsers/writers
-- Database engine connectors
-
-Basic set of plugins is part of DbGate git repository and is installed with app. Additional plugins pust be downloaded from NPM (this task is handled by DbGate) -->
-
-## How to run development environment
-
-Simple variant - runs WEB application:
-
-```sh
-yarn
-yarn start
-```
-
-If you want more control, run WEB application:
-
-```sh
-yarn # install NPM packages
-```
-
-And than run following 3 commands concurrently in 3 terminals:
-
-```
-yarn start:api # run API on port 3000
-yarn start:web # run web on port 5001
-yarn lib # watch typescript libraries and plugins modifications
-```
-
-This runs API on port 3000 and web application on port 5001  
-Open http://localhost:5001 in your browser
-
-If you want to run electron app:
-
-```sh
-yarn # install NPM packages
-cd app
-yarn # install NPM packages for electron
-```
-
-And than run following 3 commands concurrently in 3 terminals:
-
-```
-yarn start:web # run web on port 5001 (only static JS and HTML files)
-yarn lib # watch typescript libraries and plugins modifications
-yarn start:app # run electron app
-```
-
-## How to run built electron app locally
-
-This mode is very similar to production run of electron app. Electron doesn't use localhost:5001.
-
-```sh
-cd app
-yarn
-```
-
-```sh
-yarn
-yarn build:app:local
-yarn start:app:local
-```
-
-## Running tests
-
-Unit tests (e.g. in `dbgate-tools`):
-
-```sh
-yarn workspace dbgate-tools test
-```
-
-Integration tests (requires Docker):
-
-```sh
-cd integration-tests
-yarn test:local                                        # run all tests
-yarn test:local:path __tests__/alter-database.spec.js  # run a single test file
-```
-
-E2E tests (Cypress):
-
-```sh
-yarn cy:open
-```
-
-## How to create plugin
-
-Creating plugin is described in [documentation](https://docs.dbgate.io/plugin-development)
-
-But it is very simple:
-
-```sh
-npm install -g yo # install yeoman
-npm install -g generator-dbgate # install dbgate generator
-cd dbgate-plugin-my-new-plugin # this directory is created by wizard, edit, what you need to change
-yarn plugin # this compiles plugin and copies it into existing DbGate installation
-```
-
-After restarting DbGate, you could use your new plugin from DbGate.
-
-## Logging
-
-DbGate uses [pinomin logger](https://github.com/dbgate/pinomin). So by default, it produces JSON log messages into console and log files. If you want to see formatted logs, please use [pino-pretty](https://github.com/pinojs/pino-pretty) log formatter.
+[GPL-3.0](LICENSE). DbGate is © Jan Prochazka and the DbGate contributors. Olee AI's changes are released under the same license. The internal-use notice in [OLEE-INTERNAL-USE.md](OLEE-INTERNAL-USE.md) is an Olee AI policy and does not change the license.
