@@ -2,7 +2,7 @@
   import _ from 'lodash';
   import Link from '../elements/Link.svelte';
 
-  import { plusExpandIcon } from '../icons/expandIcons';
+  import { chevronExpandIcon } from '../icons/expandIcons';
 
   import FontIcon from '../icons/FontIcon.svelte';
   import contextMenu from '../utility/contextMenu';
@@ -12,7 +12,7 @@
   export let group;
   export let groupFunc;
   export let items;
-  export let groupIconFunc = plusExpandIcon;
+  export let groupIconFunc = chevronExpandIcon;
   export let mapGroupTitle = undefined;
   export let module;
   export let checkedObjectsStore = null;
@@ -53,6 +53,7 @@
 
 <div
   class="group"
+  class:collapsed={!isExpanded}
   on:click={() =>
     collapsedGroupNames.update(names => {
       if (names.includes(group)) return names.filter(x => x != group);
@@ -65,8 +66,10 @@
     <FontIcon icon={groupIconFunc(isExpanded)} />
   </span>
 
-  {mapGroupTitle ? mapGroupTitle(group) : group}
-  {items && `(${countText})`}
+  <span class="title">{mapGroupTitle ? mapGroupTitle(group) : group}</span>
+  {#if items}
+    <span class="count">{countText}</span>
+  {/if}
 </div>
 
 {#if isExpanded}
@@ -100,16 +103,31 @@
 <style>
   .group {
     user-select: none;
-    padding: 5px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 12px 14px 4px 6px;
     cursor: pointer;
     white-space: nowrap;
-    font-weight: bold;
-  }
-
-  .group:hover {
-    background-color: var(--theme-sidebar-background-hover);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--theme-generic-font-grayed);
   }
   .expand-icon {
-    margin-right: 3px;
+    font-size: 13px;
+    width: 14px;
+    display: flex;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--dim-transition-fast);
+  }
+  .group:hover .expand-icon,
+  .group.collapsed .expand-icon {
+    opacity: 1;
+  }
+  .count {
+    margin-left: auto;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
   }
 </style>

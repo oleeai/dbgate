@@ -1,14 +1,26 @@
 body {
-  font-family: -apple-system, BlinkMacSystemFont, Segoe WPC, Segoe UI, HelveticaNeue-Light, Ubuntu, Droid Sans,
-    sans-serif;
-  font-size: 14px;
-  /* font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-	  'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-	  sans-serif; 
-	  */
-  -webkit-font-smoothing: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI Variable Text', 'Segoe UI',
+    system-ui, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: -0.003em;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--theme-content-background);
   overflow: hidden;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--theme-ui-accent) 30%, transparent);
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'JetBrains Mono', Consolas, 'Liberation Mono', monospace;
 }
 
 .horizontal-split-handle {
@@ -192,23 +204,22 @@ body {
 }
 
 body *::-webkit-scrollbar {
-  height: 0.8em;
-  width: 0.8em;
+  height: 11px;
+  width: 11px;
 }
 body *::-webkit-scrollbar-track {
-  border-radius: 1px;
   background: var(--theme-scrollbar-background);
 }
 body *::-webkit-scrollbar-corner {
-  border-radius: 1px;
   background: var(--theme-scrollbar-corner-background);
 }
 
 body *::-webkit-scrollbar-thumb {
-  border-radius: 8px;
-  border: 2px solid transparent;
+  border-radius: 999px;
+  border: 3px solid transparent;
   background: var(--theme-scrollbar-thumb-background);
   background-clip: padding-box;
+  min-height: 32px;
 }
 
 body *::-webkit-scrollbar-thumb:hover {
@@ -223,7 +234,7 @@ input[type='button']:focus-visible,
 input[type='submit']:focus-visible,
 input[type='checkbox']:focus-visible {
   outline: var(--theme-focus-outline);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -338,7 +349,7 @@ input[type='checkbox'] {
   width: 16px;
   height: 16px;
 
-  border-radius: var(--dim-radius-sm);
+  border-radius: 4px;
   border: var(--theme-checkbox-border);
   background-color: var(--theme-input-background);
 
@@ -393,4 +404,111 @@ input[type='checkbox']:disabled {
 
 input[type='checkbox']:disabled::before {
   background-color: var(--theme-checkbox-background-disabled-before);
+}
+
+/* Default code editor themes follow the app palette (user-picked editor themes are left alone) */
+.ace_editor.ace-github,
+.ace_editor.ace-merbivore {
+  background-color: var(--theme-content-background);
+  color: var(--token-text);
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'JetBrains Mono', Consolas, monospace;
+  line-height: 1.6;
+}
+.ace_editor.ace-github .ace_gutter,
+.ace_editor.ace-merbivore .ace_gutter {
+  background: var(--theme-content-background);
+  color: var(--theme-generic-font-grayed);
+}
+.ace_editor.ace-github .ace_gutter-active-line,
+.ace_editor.ace-merbivore .ace_gutter-active-line {
+  background: transparent;
+}
+.ace_editor.ace-github .ace_gutter-cell.ace_gutter-active-line,
+.ace_editor.ace-merbivore .ace_gutter-cell.ace_gutter-active-line {
+  color: var(--theme-generic-font);
+}
+.ace_editor.ace-github .ace_marker-layer .ace_active-line,
+.ace_editor.ace-merbivore .ace_marker-layer .ace_active-line {
+  background: var(--theme-ui-hover);
+}
+.ace_editor.ace-github .ace_marker-layer .ace_selection,
+.ace_editor.ace-merbivore .ace_marker-layer .ace_selection {
+  background: color-mix(in srgb, var(--theme-ui-accent) 24%, transparent);
+}
+.ace_editor.ace-github .ace_marker-layer .ace_selected-word,
+.ace_editor.ace-merbivore .ace_marker-layer .ace_selected-word {
+  background: color-mix(in srgb, var(--theme-ui-accent) 12%, transparent);
+  border: none;
+}
+.ace_editor.ace-github .ace_marker-layer .ace_bracket,
+.ace_editor.ace-merbivore .ace_marker-layer .ace_bracket {
+  border-color: var(--theme-ui-border-strong);
+}
+.ace_editor.ace-github .ace_cursor,
+.ace_editor.ace-merbivore .ace_cursor {
+  color: var(--theme-ui-accent);
+}
+.ace_editor.ace-github .ace_indent-guide,
+.ace_editor.ace-merbivore .ace_indent-guide {
+  background: none;
+  border-right: 1px solid var(--theme-ui-border-subtle);
+}
+.ace_editor.ace-github .ace_keyword,
+.ace_editor.ace-merbivore .ace_keyword {
+  color: var(--token-keyword);
+  font-weight: 600;
+}
+.ace_editor.ace-github .ace_string,
+.ace_editor.ace-merbivore .ace_string {
+  color: var(--token-string);
+}
+.ace_editor.ace-github .ace_constant.ace_numeric,
+.ace_editor.ace-merbivore .ace_constant.ace_numeric {
+  color: var(--token-number);
+}
+.ace_editor.ace-github .ace_constant,
+.ace_editor.ace-merbivore .ace_constant,
+.ace_editor.ace-github .ace_constant.ace_language,
+.ace_editor.ace-merbivore .ace_constant.ace_language {
+  color: var(--token-literal);
+}
+.ace_editor.ace-github .ace_comment,
+.ace_editor.ace-merbivore .ace_comment {
+  color: var(--token-comment);
+  font-style: normal;
+}
+.ace_editor.ace-github .ace_support.ace_function,
+.ace_editor.ace-merbivore .ace_support.ace_function {
+  color: var(--token-built_in);
+}
+.ace_editor.ace-github .ace_storage,
+.ace_editor.ace-merbivore .ace_storage,
+.ace_editor.ace-github .ace_support.ace_type,
+.ace_editor.ace-merbivore .ace_support.ace_type {
+  color: var(--token-type);
+}
+.ace_editor.ace-github .ace_variable,
+.ace_editor.ace-merbivore .ace_variable {
+  color: var(--token-variable);
+}
+.ace_editor.ace-github .ace_identifier,
+.ace_editor.ace-merbivore .ace_identifier,
+.ace_editor.ace-github .ace_paren,
+.ace_editor.ace-merbivore .ace_paren,
+.ace_editor.ace-github .ace_keyword.ace_operator,
+.ace_editor.ace-merbivore .ace_keyword.ace_operator {
+  color: var(--token-text);
+  font-weight: normal;
+}
+
+/* toolbar layout helpers */
+.toolstrip-spacer {
+  flex: 1 1 auto;
+}
+.toolstrip-divider {
+  align-self: center;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--theme-ui-border);
 }

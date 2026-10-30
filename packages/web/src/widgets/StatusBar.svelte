@@ -66,7 +66,7 @@
   }
 </script>
 
-<div class="main" style={$connectionBackground}>
+<div class="main" class:colored={!!$connectionBackground} style={$connectionBackground}>
   <div class="container">
     {#if databaseName && databaseName != '_api_database_'}
       <div class="item">
@@ -220,6 +220,13 @@
     justify-content: space-between;
     cursor: default;
     flex: 1;
+    font-size: 12px;
+  }
+  .main.colored {
+    color: white;
+    --theme-statusbar-icon-ok: var(--tw-color-green-300);
+    --theme-statusbar-icon-error: var(--tw-color-red-300);
+    --theme-statusbar-background-hover: color-mix(in srgb, white 16%, transparent);
   }
   .container {
     display: flex;

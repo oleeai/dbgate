@@ -26,6 +26,7 @@
   export let collapsed = null;
   export let storeHeight = false;
   export let altsidebar = false;
+  export let hideTitle = false;
 
   // export let storageName = null;
   export let onClose = null;
@@ -79,14 +80,16 @@
 </script>
 
 {#if !skip && positiveCondition}
-  <WidgetTitle
-    clickable={computed.clickableTitle}
-    on:click={computed.clickableTitle ? () => toggleWidgetCollapse(name) : null}
-    data-testid={$$props['data-testid']}
-    {altsidebar}
-    {onClose}
-    collapsed={computed.collapsed}>{title}</WidgetTitle
-  >
+  {#if !hideTitle}
+    <WidgetTitle
+      clickable={computed.clickableTitle}
+      on:click={computed.clickableTitle ? () => toggleWidgetCollapse(name) : null}
+      data-testid={$$props['data-testid']}
+      {altsidebar}
+      {onClose}
+      collapsed={computed.collapsed}>{title}</WidgetTitle
+    >
+  {/if}
 
   {#if !computed.collapsed || $animatedHeight > 0}
     <div

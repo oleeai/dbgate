@@ -206,7 +206,10 @@
 
 <style>
   .main {
-    padding: 5px;
+    padding: 4px 8px;
+    margin: 0 8px;
+    line-height: 20px;
+    border-radius: var(--dim-radius-sm);
     cursor: pointer;
     white-space: nowrap;
     font-weight: normal;
@@ -217,7 +220,7 @@
     background-color: var(--theme-sidebar-background-hover);
   }
   .isBold {
-    font-weight: bold;
+    font-weight: 600;
   }
   .isGrayed {
     color: var(--theme-generic-font-grayed);
@@ -239,6 +242,11 @@
   }
   .expand-icon {
     margin-right: 3px;
+    color: var(--theme-generic-font-grayed);
+    opacity: 0.55;
+  }
+  .main:hover .expand-icon {
+    opacity: 1;
   }
 
   .pin,

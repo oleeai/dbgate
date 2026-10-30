@@ -71,11 +71,7 @@
     border: none;
     outline: none;
     padding: 0 6px;
-    background-color: var(--theme-searchbox-background);
-  }
-
-  input.altsearchbox {
-    background-color: var(--theme-altsearchbox-background);
+    background-color: transparent;
   }
 
   input::placeholder {
@@ -86,6 +82,6 @@
   }
 
   input.hasFilter {
-    background-color: var(--theme-searchbox-background-filtered);
+    background-color: transparent;
   }
 </style>

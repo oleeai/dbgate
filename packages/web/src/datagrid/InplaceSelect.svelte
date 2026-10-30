@@ -161,7 +161,7 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    background-color: var(--theme-toolstrip-button-background);
+    background-color: var(--theme-modal-background);
     overflow-y: auto;
     overflow-x: hidden;
     box-shadow: var(--theme-input-inplace-select-shadow);
@@ -173,7 +173,7 @@
     left: 0;
     z-index: 20;
     min-height: 17px;
-    background-color: var(--theme-toolstrip-button-background);
+    background-color: var(--theme-modal-background);
     height: 100%;
     width: calc(100% - 4px);
     padding: 0 2px;
@@ -195,7 +195,7 @@
 
   label {
     padding: 2px 3px;
-    border-bottom: var(--theme-toolstrip-button-border);
+    border-bottom: var(--theme-modal-border);
     display: block;
     min-height: 16px;
   }

@@ -75,7 +75,7 @@ export function countColumnSizes(grider: Grider, columns, containerWidth, displa
       else if (value?.$bigint) text = value.$bigint;
       else if (value?.$decimal) text = value.$decimal;
       else if (isJsonLikeLongString(value) && safeJsonParse(value)) text = '(JSON)';
-      const width = context.measureText(typeof text == 'string' ? text.slice(0, MAX_GRID_TEXT_LENGTH) : text).width + 8;
+      const width = context.measureText(typeof text == 'string' ? text.slice(0, MAX_GRID_TEXT_LENGTH) : text).width + 20;
       // console.log('colName', colName, text, width);
       columnSizes.putSizeOverride(colIndex, width);
       // let colName = this.columns[colIndex].uniquePath;

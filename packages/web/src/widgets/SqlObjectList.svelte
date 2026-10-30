@@ -295,9 +295,10 @@
     {/if}
   </WidgetsInnerContainer>
 {:else}
-  <SearchBoxWrapper {filter}>
+  <div class="search-row">
+  <SearchBoxWrapper {filter} noMargin fillFlex>
     <SearchInput
-      placeholder={_t('sqlObject.search.placeholder', { defaultMessage: 'Search in tables, views, procedures' })}
+      placeholder={_t('common.search', { defaultMessage: 'Search' })}
       bind:value={filter}
       bind:this={domFilter}
       onFocusFilteredList={() => {
@@ -312,17 +313,24 @@
       narrow={false}
       data-testid="SqlObjectList_searchMenuDropDown"
     />
-    {#if !filter}
-      <DropDownButton icon="icon plus-thick" menu={createAddMenu} data-testid="SqlObjectList_addButton" />
-    {/if}
+  </SearchBoxWrapper>
+  <div class="row-button">
+    <DropDownButton
+      icon="icon plus"
+      menu={createAddMenu}
+      title={_t('database.newTable', { defaultMessage: 'New table' })}
+      data-testid="SqlObjectList_addButton"
+    />
+  </div>
+  <div class="row-button">
     <DropDownButton
       menu={createRefreshDatabaseMenu}
       title={_t('sqlObjectList.refreshDatabase', { defaultMessage: 'Refresh database connection and object list' })}
-      narrow={false}
       data-testid="SqlObjectList_refreshButton"
-      icon="icon dots-vertical"
+      icon="icon dots-horizontal"
     />
-  </SearchBoxWrapper>
+  </div>
+  </div>
   <SchemaSelector
     schemaList={_.isArray($schemaList) ? $schemaList : null}
     objectList={flatFilteredList}
@@ -409,3 +417,29 @@
     {/if}
   </WidgetsInnerContainer>
 {/if}
+
+<style>
+  .search-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin: 6px 6px 2px 10px;
+  }
+  .search-row :global(.search-box-wrapper) {
+    border-radius: 7px;
+    min-height: 28px;
+  }
+  .row-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: background-color var(--dim-transition-fast);
+  }
+  .row-button:hover {
+    background: var(--theme-ui-hover);
+  }
+</style>

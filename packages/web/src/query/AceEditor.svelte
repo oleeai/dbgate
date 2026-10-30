@@ -132,7 +132,7 @@
     currentEditorKeybindigMode,
     getCurrentSettings,
   } from '../stores';
-  import { currentThemeDefinition } from '../plugins/themes';
+  import { currentThemeDefinition, currentThemeType } from '../plugins/themes';
   import _ from 'lodash';
   import { handleCommandKeyDown } from '../commands/CommandListener.svelte';
   import resizeObserver from '../utility/resizeObserver';
@@ -193,7 +193,7 @@
   $: theme =
     $currentEditorTheme ||
     $currentThemeDefinition?.editorTheme ||
-    ($currentThemeDefinition?.themeType == 'dark' ? 'merbivore' : 'github');
+    ($currentThemeType == 'dark' ? 'merbivore' : 'github');
   $: keyBindingMode = $currentEditorKeybindigMode || null;
   $: watchEditorFontSize($currentEditorFontSize);
 

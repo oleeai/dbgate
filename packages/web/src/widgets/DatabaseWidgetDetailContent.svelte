@@ -18,6 +18,7 @@
 
   export let domSqlObjectList = null;
   export let showCloudConnection;
+  export let hideObjectListTitle = false;
 
   $: conid = $currentDatabase?.connection?._id;
   $: connection = useConnectionInfo({ conid });
@@ -47,6 +48,7 @@
     ? _t('widget.collectionsContainers', { defaultMessage: 'Collections/containers' })
     : _t('widget.tablesViewsFunctions', { defaultMessage: 'Tables, views, functions' })}
   name="dbObjectsSql"
+  hideTitle={hideObjectListTitle}
   skip={!(
     conid &&
     (database || singleDatabase) &&
@@ -60,6 +62,7 @@
 <WidgetColumnBarItem
   title={_t('widget.keys', { defaultMessage: 'Keys' })}
   name="dbObjectsKeyValue"
+  hideTitle={hideObjectListTitle}
   skip={!(conid && (database || singleDatabase) && driver?.databaseEngineTypes?.includes('keyvalue'))}
   positiveCondition={correctCloudStatus}
 >
@@ -69,6 +72,7 @@
 <WidgetColumnBarItem
   title={_t('widget.endpoints', { defaultMessage: 'Endpoints' })}
   name="endpoints"
+  hideTitle={hideObjectListTitle}
   skip={!(conid && (database || singleDatabase) && driver?.databaseEngineTypes?.includes('rest'))}
   positiveCondition={correctCloudStatus}
 >

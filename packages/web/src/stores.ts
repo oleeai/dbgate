@@ -157,7 +157,7 @@ export const selectedWidget = writableWithStorage(
   isAdminPage() ? 'admin' : 'database',
   isAdminPage() ? 'selectedAdminWidget' : 'selectedWidget'
 );
-export const lockedDatabaseMode = writableWithStorage<boolean>(false, 'lockedDatabaseMode');
+export const lockedDatabaseMode = writableWithStorage<boolean>(true, 'lockedDatabaseMode');
 export const visibleWidgetSideBar = writableWithStorage(true, 'visibleWidgetSideBar');
 export const visibleSelectedWidget = derived(
   [selectedWidget, visibleWidgetSideBar],
@@ -216,6 +216,9 @@ export const draggingDbGroup = writable(null);
 export const draggingDbGroupTarget = writable(null);
 
 export const leftPanelWidth = writableWithStorage(300, 'leftPanelWidth');
+export const WIDGET_RAIL_COLLAPSED_WIDTH = 48;
+export const widgetRailWidth = writableWithStorage(WIDGET_RAIL_COLLAPSED_WIDTH, 'widgetRailWidth');
+export const widgetRailExpandedWidth = writableWithStorage(208, 'widgetRailExpandedWidth');
 export const rightPanelWidth = writableWithStorage(300, 'rightPanelWidth');
 export const currentDropDownMenu = writable(null);
 export const openedModals = writable([]);
@@ -320,6 +323,7 @@ export const visibleHamburgerMenuWidget = derived(useSettings(), $settings => {
 
 subscribeCssVariable(visibleSelectedWidget, x => (x ? 1 : 0), '--dim-visible-left-panel');
 subscribeCssVariable(leftPanelWidth, x => `${x}px`, '--dim-left-panel-width');
+subscribeCssVariable(widgetRailWidth, x => `${x}px`, '--dim-widget-icon-size');
 subscribeCssVariable(rightPanelWidth, x => `${x}px`, '--dim-right-panel-width');
 subscribeCssVariable(visibleTitleBar, x => (x ? 1 : 0), '--dim-visible-titlebar');
 subscribeCssVariable(lockedDatabaseMode, x => (x ? 0 : 1), '--dim-visible-tabs-databases');

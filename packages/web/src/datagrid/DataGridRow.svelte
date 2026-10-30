@@ -41,7 +41,7 @@
   export let conid;
   export let database;
   export let driver;
-  export let gridColoringMode = '36';
+  export let gridColoringMode = 'none';
   export let overlayDefinition = null;
 
   export let dataEditorTypesBehaviourOverride = null;

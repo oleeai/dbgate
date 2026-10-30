@@ -152,6 +152,17 @@
   .header {
     display: flex;
     flex-wrap: nowrap;
+    align-items: center;
+    padding-right: 2px;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  .header :global(.buttonLike) {
+    opacity: 0;
+    transition: opacity var(--dim-transition-fast);
+  }
+  .header:hover :global(.buttonLike) {
+    opacity: 1;
   }
   .order-index {
     font-size: 10pt;
@@ -163,7 +174,7 @@
   .label {
     flex: 1;
     min-width: 10px;
-    padding: 2px;
+    padding: 4px 4px 4px 8px;
     margin: auto;
     white-space: nowrap;
     overflow: hidden;
@@ -180,5 +191,8 @@
   }
   .data-type {
     color: var(--theme-generic-font-grayed);
+    font-weight: 400;
+    font-size: 11.5px;
+    margin-left: 2px;
   }
 </style>

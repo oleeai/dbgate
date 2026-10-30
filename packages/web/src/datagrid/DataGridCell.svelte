@@ -185,10 +185,17 @@
     border-bottom: var(--theme-datagrid-border-horizontal);
     border-left: var(--theme-datagrid-border-vertical);
     border-right: var(--theme-datagrid-border-vertical);
-    padding: 2px;
+    padding: 2px 8px;
     white-space: nowrap;
     position: relative;
     overflow: hidden;
+    font-variant-numeric: tabular-nums;
+  }
+  td:not(.isSelected) :global(.showFormButtonMarker) {
+    opacity: 0;
+  }
+  :global(tr:hover) > td :global(.showFormButtonMarker) {
+    opacity: 1;
   }
   td.isStickyLeft {
     background: var(--theme-datagrid-headercell-background);
@@ -252,7 +259,7 @@
   }
 
   .alignRight {
-    color: var(--theme-icon-green);
+    color: var(--theme-datagrid-number-foreground);
     text-align: var(--data-grid-numbers-align);
   }
 

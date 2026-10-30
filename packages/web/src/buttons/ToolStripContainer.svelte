@@ -57,7 +57,7 @@
   }
 
   .content.isComponentActive {
-    max-height: calc(100% - 32px);
+    max-height: calc(100% - 40px);
   }
 
   .toolstrip {
@@ -67,10 +67,10 @@
     background: var(--theme-toolstrip-background);
     border-top: var(--theme-toolstrip-border);
     border-bottom: var(--theme-toolstrip-border);
-    padding: 2px 6px;
-    gap: 2px;
-    min-height: 32px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    padding: 0 8px;
+    gap: 4px;
+    min-height: 40px;
+    box-sizing: border-box;
   }
 
   .scrollContent {

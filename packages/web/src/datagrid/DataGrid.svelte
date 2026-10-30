@@ -128,7 +128,7 @@
   let managerSize;
   let cellViewWidth;
   const collapsedLeftColumnStore =
-    getContext('collapsedLeftColumnStore') || writable(getLocalStorage('dataGrid_collapsedLeftColumn', false));
+    getContext('collapsedLeftColumnStore') || writable(getLocalStorage('dataGrid_collapsedLeftColumn', true));
   const settings = useSettings();
   const usageTabId = getContext('tabid');
 

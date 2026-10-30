@@ -12,10 +12,14 @@
   import hasPermission from '../utility/hasPermission';
   import { isProApp } from '../utility/proTools';
   import OpenedTabsWidget from './OpenedTabsWidget.svelte';
+  import SqlEditorWidget from './SqlEditorWidget.svelte';
 </script>
 
 {#if hasPermission('widgets/database')}
   <DatabaseWidget hidden={$visibleSelectedWidget != 'database'} />
+{/if}
+{#if $visibleSelectedWidget == 'sql-editor' && hasPermission('widgets/sql-editor')}
+  <SqlEditorWidget />
 {/if}
 {#if $visibleSelectedWidget == 'file' && hasPermission('widgets/file')}
   <FilesWidget />

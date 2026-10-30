@@ -196,6 +196,7 @@
         {#key `${reference.schemaName}.${reference.pureName}`}
           <svelte:self
             {...$$props}
+            activateOnTabVisible={false}
             pureName={reference.pureName}
             schemaName={reference.schemaName}
             config={childConfig}
