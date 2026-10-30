@@ -2,6 +2,7 @@ import * as TableDataTab from './TableDataTab.svelte';
 import * as CollectionDataTab from './CollectionDataTab.svelte';
 import * as ViewDataTab from './ViewDataTab.svelte';
 import * as TableStructureTab from './TableStructureTab.svelte';
+import * as TableDetailsTab from './TableDetailsTab.svelte';
 import * as QueryTab from './QueryTab.svelte';
 import * as ShellTab from './ShellTab.svelte';
 import * as ArchiveFileTab from './ArchiveFileTab.svelte';
@@ -37,6 +38,7 @@ export default {
   CollectionDataTab,
   ViewDataTab,
   TableStructureTab,
+  TableDetailsTab,
   QueryTab,
   ShellTab,
   ArchiveFileTab,

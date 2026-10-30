@@ -55,6 +55,7 @@
     'icon rail-expand': 'mdi mdi-chevron-double-right',
     'icon trash': 'mdi mdi-trash-can-outline',
     'icon table-cog': 'mdi mdi-table-cog',
+    'icon table-details': 'mdi mdi-information-outline',
     'icon code': 'mdi mdi-code-tags',
     'icon undo': 'mdi mdi-undo',
     'icon search': 'mdi mdi-magnify',
@@ -353,6 +354,7 @@
     'img procedure': 'mdi mdi-cog color-icon-blue',
     'img function': 'mdi mdi-function-variant',
     'img table-structure': 'mdi mdi-tools color-icon-blue',
+    'img table-details': 'mdi mdi-information-outline color-icon-blue',
     'img view-structure': 'mdi mdi-tools color-icon-magenta',
     'img api-table': 'mdi mdi-table-large color-icon-magenta',
 
