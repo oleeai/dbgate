@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
+  import type { Readable } from 'svelte/store';
   import ShowFormButton from '../formview/ShowFormButton.svelte';
   import FontIcon from '../icons/FontIcon.svelte';
 
@@ -10,6 +12,9 @@
   export let isSelected = false;
 
   let mouseIn = false;
+
+  // set by a paged grid, so the numbers continue from the previous page
+  const rowNumberOffset = getContext('dataGridRowNumberOffset') as Readable<number>;
 </script>
 
 <td
@@ -19,7 +24,7 @@
   on:mouseenter={() => (mouseIn = true)}
   on:mouseleave={() => (mouseIn = false)}
 >
-  {rowIndex + 1}
+  {rowIndex + 1 + ($rowNumberOffset ?? 0)}
 
   {#if mouseIn && onShowForm}
     <ShowFormButton on:click={onShowForm} />
