@@ -1166,6 +1166,7 @@
   icon={backupParsed ? 'img table-backup' : databaseObjectIcons[data.objectTypeField]}
   menu={createMenu}
   showPinnedInsteadOfUnpin={passProps?.showPinnedInsteadOfUnpin}
+  showMenuButton={passProps?.showMenuButton}
   onPin={passProps?.ingorePin ? null : isPinned ? null : () => pinnedTables.update(list => [...list, data])}
   onUnpin={passProps?.ingorePin
     ? null
