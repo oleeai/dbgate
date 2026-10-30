@@ -39,12 +39,15 @@ Olee AI's changes sit on top of upstream DbGate releases (currently **7.3.3**, c
   - olee.ai × DbGate badge in the tab bar
   - Fix: the object list no longer gets stuck on "Loading database structure" after a reload or a lost event stream
 - **CI** ([#2](https://github.com/oleeai/dbgate/pull/2)): runs the community test suites and publishes the Docker image to GHCR (see [CI and releases](#ci-and-releases))
-
-**In review / not on `master` yet**
-
-- Primary-key and foreign-key icons in the data grid column headers; the link icon opens the referenced table ([#4](https://github.com/oleeai/dbgate/pull/4), merged into the #3 branch after #3 landed, so it still needs to reach `master`)
-- Table details tab: indexes, triggers, RLS policies, enums and check constraints, each with its SQL ([#5](https://github.com/oleeai/dbgate/pull/5), in review)
-- Paging footer for table data: row count, page navigation, rows per page and quick CSV/JSON export ([#6](https://github.com/oleeai/dbgate/pull/6), in review)
+- **Table data**
+  - Primary-key and foreign-key icons in the column headers; the link icon opens the referenced table ([#4](https://github.com/oleeai/dbgate/pull/4))
+  - Filter builder: column → operator → value chips, kept in sync with the header filter row ([#8](https://github.com/oleeai/dbgate/pull/8))
+  - Paging footer: row count, page navigation, rows per page and quick CSV/JSON export ([#6](https://github.com/oleeai/dbgate/pull/6))
+  - Row side sheet to edit or insert a row, with a picker for foreign keys ([#13](https://github.com/oleeai/dbgate/pull/13))
+  - Column header menu with quick stats, and a side panel to add, edit or delete columns ([#11](https://github.com/oleeai/dbgate/pull/11))
+- **Table details** tab: indexes, triggers, RLS policies, enums and check constraints, each with its SQL ([#5](https://github.com/oleeai/dbgate/pull/5))
+- **Schema visualizer**: the tables of a schema with their relations on a pan-and-zoom canvas, built with Svelte Flow ([#10](https://github.com/oleeai/dbgate/pull/10))
+- **Saved queries and query history** shared by the team, with who saved or ran each query and a Mine / Everyone filter ([#12](https://github.com/oleeai/dbgate/pull/12))
 
 ## Run with Docker
 
