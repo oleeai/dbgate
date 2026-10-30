@@ -1,7 +1,7 @@
 <script>
   import _ from 'lodash';
   import AppObjectGroup from './AppObjectGroup.svelte';
-  import { plusExpandIcon } from '../icons/expandIcons';
+  import { chevronExpandIcon } from '../icons/expandIcons';
 
   import AppObjectListItem from './AppObjectListItem.svelte';
   import { writable } from 'svelte/store';
@@ -25,7 +25,7 @@
   export let sortGroups = false;
   export let groupContextMenu = null;
 
-  export let groupIconFunc = plusExpandIcon;
+  export let groupIconFunc = chevronExpandIcon;
   export let groupFunc = undefined;
   export let mapGroupTitle = undefined;
   export let onDropOnGroup = undefined;

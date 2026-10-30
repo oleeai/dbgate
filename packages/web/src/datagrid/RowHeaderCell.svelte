@@ -37,7 +37,10 @@
     border-bottom: var(--theme-datagrid-border-horizontal);
     border-right: var(--theme-datagrid-border-vertical);
     text-align: left;
-    padding: 2px;
+    padding: 2px 8px;
+    color: var(--theme-datagrid-foreground-grayed);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
     background-color: var(--theme-datagrid-headercell-background);
     overflow: hidden;
     position: sticky;

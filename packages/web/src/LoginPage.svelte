@@ -340,7 +340,8 @@
     margin-bottom: 0;
     flex: 1;
     text-align: center;
-    border-radius: 5px;
+    border-radius: var(--dim-radius-md);
+    font-weight: 500;
     cursor: pointer;
 
     border: var(--theme-formbutton-border);

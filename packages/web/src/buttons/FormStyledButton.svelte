@@ -45,19 +45,26 @@
     border-radius: var(--dim-radius-md);
     cursor: pointer;
     font-family: inherit;
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18px;
+    letter-spacing: -0.005em;
     white-space: nowrap;
     transition:
       background-color var(--dim-transition-fast),
       border-color var(--dim-transition-fast),
       color var(--dim-transition-fast),
-      box-shadow var(--dim-transition-fast);
+      box-shadow var(--dim-transition-fast),
+      transform 100ms var(--dim-ease-out);
+  }
+
+  input:active:not(.disabled) {
+    transform: scale(0.98);
   }
 
   .setBackgroundColor {
     background: var(--theme-formbutton-background);
+    box-shadow: var(--theme-formbutton-shadow);
   }
 
   input:not(.skipWidth) {
@@ -80,14 +87,14 @@
   }
 
   input.outline {
-    background-color: transparent;
+    background-color: var(--theme-outlinebutton-background);
     color: var(--theme-outlinebutton-foreground);
     border: var(--theme-outlinebutton-border);
   }
 
   input.outline:hover:not(.disabled) {
+    background-color: var(--theme-outlinebutton-hover-background);
     color: var(--theme-outlinebutton-hover-foreground);
     border: var(--theme-outlinebutton-hover-border);
-    margin: 1px;
   }
 </style>

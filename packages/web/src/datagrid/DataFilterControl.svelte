@@ -344,7 +344,7 @@
   // $: if (value != filter) setFilter(value);
 </script>
 
-<div class="wrapper" class:isError class:isOk class:useMargin={!noMargin}>
+<div class="wrapper" class:isError class:isOk class:hasValue={!!value} class:useMargin={!noMargin}>
   <input
     bind:this={domInput}
     type="text"
@@ -425,16 +425,40 @@
   }
   .wrapper.useMargin {
     border: var(--theme-datagrid-filter-border);
-    border-radius: 4px;
-    margin: 2px 3px;
+    border-radius: var(--dim-radius-sm);
+    margin: 3px 4px;
+    padding-left: 4px;
+    transition:
+      border-color var(--dim-transition-fast),
+      box-shadow var(--dim-transition-fast);
+  }
+  .wrapper.useMargin:hover {
+    border-color: var(--theme-input-border-hover-color);
+  }
+  .wrapper.useMargin:focus-within {
+    border-color: var(--theme-input-border-focus-color);
+    box-shadow: var(--theme-input-focus-ring);
+  }
+  .wrapper :global(.buttonLike) {
+    opacity: 0;
+    transition: opacity var(--dim-transition-fast);
+  }
+  .wrapper:hover :global(.buttonLike),
+  .wrapper:focus-within :global(.buttonLike),
+  .wrapper.hasValue :global(.buttonLike) {
+    opacity: 1;
   }
   input {
     flex: 1;
     min-width: 10px;
     width: 1px;
+    font-size: 12px;
     background-color: var(--theme-datagrid-filter-background);
     border: none;
     outline: none;
+  }
+  input::placeholder {
+    color: var(--theme-input-placeholder);
   }
 
   .isError {

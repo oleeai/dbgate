@@ -191,7 +191,7 @@
     showSnackbarSuccess(_t('viewData.savedToDatabase', { defaultMessage: 'Saved to database' }));
   }
 
-  const collapsedLeftColumnStore = writable(getLocalStorage('dataGrid_collapsedLeftColumn', false));
+  const collapsedLeftColumnStore = writable(getLocalStorage('dataGrid_collapsedLeftColumn', true));
   setContext('collapsedLeftColumnStore', collapsedLeftColumnStore);
   $: setLocalStorage('dataGrid_collapsedLeftColumn', $collapsedLeftColumnStore);
 

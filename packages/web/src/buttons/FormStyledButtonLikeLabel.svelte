@@ -14,7 +14,8 @@
     width: 100px;
     background: var(--theme-formbutton-background);
     color: var(--theme-formbutton-foreground);
-    border-radius: 2px;
+    border-radius: var(--dim-radius-md);
+    font-weight: 500;
     position: relative;
     top: 3px;
     font-size: 10pt;

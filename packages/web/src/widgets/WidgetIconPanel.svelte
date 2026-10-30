@@ -10,6 +10,9 @@
     cloudSigninTokenHolder,
     seenPremiumPromoWidget,
     promoWidgetPreview,
+    widgetRailWidth,
+    widgetRailExpandedWidth,
+    WIDGET_RAIL_COLLAPSED_WIDTH,
   } from '../stores';
   import mainMenuDefinition from '../../../../app/src/mainMenuDefinition';
   import hasPermission from '../utility/hasPermission';
@@ -29,26 +32,42 @@
 
   const promoWidget = usePromoWidget({});
 
+  $: expanded = $widgetRailWidth > WIDGET_RAIL_COLLAPSED_WIDTH;
+
+  function toggleRail() {
+    $widgetRailWidth = expanded ? WIDGET_RAIL_COLLAPSED_WIDTH : $widgetRailExpandedWidth;
+  }
+
   const widgets = [
     getCurrentConfig().storageDatabase && {
-      icon: 'icon admin',
+      icon: 'icon admin-outline',
       name: 'admin',
+      label: _t('widgets.administration', { defaultMessage: 'Administration' }),
       title: _t('widgets.administration', { defaultMessage: 'Administration' }),
     },
     {
-      icon: 'icon database',
+      icon: 'icon database-outline',
       name: 'database',
+      label: _t('widgets.database', { defaultMessage: 'Database' }),
       title: _t('widgets.databaseConnections', { defaultMessage: 'Database connections' }),
+    },
+    {
+      icon: 'icon sql-editor',
+      name: 'sql-editor',
+      label: _t('widgets.sqlEditor', { defaultMessage: 'SQL Editor' }),
+      title: _t('widgets.sqlEditor', { defaultMessage: 'SQL Editor' }),
     },
     {
       icon: 'icon opened-tabs',
       name: 'opened-tabs',
+      label: _t('widgets.openedTabs', { defaultMessage: 'Opened tabs' }),
       title: _t('widgets.openedTabs', { defaultMessage: 'Opened tabs' }),
     },
     getCurrentConfig().allowPrivateCloud && {
       name: 'cloud-private',
+      label: _t('widgets.cloud', { defaultMessage: 'Cloud' }),
       title: _t('widgets.dbgateCloud', { defaultMessage: 'DbGate Cloud' }),
-      icon: 'icon cloud-private',
+      icon: 'icon cloud-private-outline',
     },
 
     // {
@@ -56,18 +75,21 @@
     //   name: 'table',
     // },
     {
-      icon: 'icon file',
+      icon: 'icon file-outline',
       name: 'file',
+      label: _t('widgets.savedFiles', { defaultMessage: 'Saved files' }),
       title: _t('widgets.favoritesAndSavedFiles', { defaultMessage: 'Favorites & Saved files' }),
     },
     {
       icon: 'icon history',
       name: 'history',
+      label: _t('widgets.history', { defaultMessage: 'History' }),
       title: _t('widgets.queryHistoryAndClosedTabs', { defaultMessage: 'Query history & Closed tabs' }),
     },
     isProApp() && {
-      icon: 'icon archive',
+      icon: 'icon archive-outline',
       name: 'archive',
+      label: _t('widgets.archive.short', { defaultMessage: 'Archive' }),
       title: _t('widgets.archive', { defaultMessage: 'Archive (saved tabular data)' }),
     },
     // {
@@ -77,12 +99,14 @@
     // },
     {
       name: 'cloud-public',
+      label: _t('widgets.cloudFiles', { defaultMessage: 'Cloud files' }),
       title: _t('widgets.dbgateCloud', { defaultMessage: 'DbGate Cloud' }),
-      icon: 'icon cloud-public',
+      icon: 'icon cloud-public-outline',
     },
     {
-      icon: 'icon premium',
+      icon: 'icon premium-outline',
       name: 'premium',
+      label: _t('widgets.premium', { defaultMessage: 'Premium' }),
       title: _t('widgets.premiumPromo', { defaultMessage: 'Premium promo' }),
       isPremiumPromo: true,
     },
@@ -152,10 +176,11 @@
   $: config = useConfig();
 </script>
 
-<div class="main">
+<div class="main" class:expanded>
   {#if $visibleHamburgerMenuWidget}
     <div class="wrapper mb-3" on:click={handleMainMenu} bind:this={domMainMenu} data-testid="WidgetIconPanel_menu">
       <FontIcon icon="icon menu" />
+      {#if expanded}<span class="label">{_t('widgets.menu', { defaultMessage: 'Menu' })}</span>{/if}
     </div>
   {/if}
   {#each widgets
@@ -170,7 +195,8 @@
       on:click={() => handleChangeWidget(item.name)}
     >
       <FontIcon icon={item.icon} title={item.title} />
-      {#if item.isPremiumPromo}
+      {#if expanded}<span class="label">{item.label || item.title}</span>{/if}
+      {#if item.isPremiumPromo && !expanded}
         <div class="premium-promo">Premium</div>
         {#if promoWidgetData?.identifier != $seenPremiumPromoWidget}
           <div class="premium-promo-not-seen">•</div>
@@ -185,7 +211,8 @@
     data-testid="WidgetIconPanel_addButton"
     title={_t('widgets.addNew', { defaultMessage: 'Add New' })}
   >
-    <FontIcon icon="icon add" />
+    <FontIcon icon="icon plus" />
+    {#if expanded}<span class="label">{_t('widgets.new', { defaultMessage: 'New' })}</span>{/if}
   </div>
 
   <div class="flex1">&nbsp;</div>
@@ -210,23 +237,41 @@
         data-testid="WidgetIconPanel_cloudAccount"
       >
         <FontIcon icon="icon cloud-account-connected" />
+        {#if expanded}<span class="label">{_t('widgets.account', { defaultMessage: 'Account' })}</span>{/if}
       </div>
     {:else}
       <div class="wrapper" on:click={handleOpenCloudLogin} data-testid="WidgetIconPanel_cloudAccount">
         <FontIcon icon="icon cloud-account" />
+        {#if expanded}<span class="label">{_t('widgets.account', { defaultMessage: 'Account' })}</span>{/if}
       </div>
     {/if}
   {/if}
 
   <div class="wrapper" on:click={handleSettingsMenu} bind:this={domSettings} data-testid="WidgetIconPanel_settings">
-    <FontIcon icon="icon settings" />
+    <FontIcon icon="icon settings-outline" />
+    {#if expanded}<span class="label">{_t('widgets.settings', { defaultMessage: 'Settings' })}</span>{/if}
+  </div>
+
+  <div
+    class="wrapper"
+    on:click={toggleRail}
+    title={expanded
+      ? _t('widgets.collapseSidebar', { defaultMessage: 'Collapse sidebar' })
+      : _t('widgets.expandSidebar', { defaultMessage: 'Expand sidebar' })}
+    data-testid="WidgetIconPanel_toggleRail"
+  >
+    <FontIcon icon={expanded ? 'icon rail-collapse' : 'icon rail-expand'} />
+    {#if expanded}<span class="label muted">{_t('widgets.collapse', { defaultMessage: 'Collapse' })}</span>{/if}
   </div>
 </div>
 
 <style>
   .wrapper {
-    font-size: 20pt;
-    height: 50px;
+    font-size: 18px;
+    width: 34px;
+    height: 34px;
+    margin: 2px auto;
+    border-radius: 9px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -237,6 +282,10 @@
   }
   .wrapper:hover {
     color: var(--theme-widget-icon-foreground-hover);
+    background: var(--theme-widget-icon-background-hover);
+  }
+  .wrapper:active {
+    transform: scale(0.92);
   }
   .wrapper.selected {
     color: var(--theme-widget-icon-foreground-active);
@@ -247,6 +296,36 @@
     display: flex;
     flex: 1;
     flex-direction: column;
+    padding: 6px 0;
+  }
+
+  .main.expanded .wrapper {
+    width: auto;
+    margin: 1px 8px;
+    padding: 0 8px;
+    gap: 10px;
+    justify-content: flex-start;
+    border-radius: 8px;
+  }
+  .main.expanded .wrapper:active {
+    transform: scale(0.98);
+  }
+  .label {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--theme-sidebar-foreground);
+  }
+  .wrapper.selected .label {
+    color: var(--theme-widget-icon-foreground-active);
+  }
+  .label.muted {
+    color: var(--theme-widget-panel-foreground);
+    font-weight: 400;
   }
 
   .premium-promo {

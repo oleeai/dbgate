@@ -535,7 +535,9 @@
   export let onOpenChart = null;
   export let macroCondition = null;
 
-  export const activator = createActivator('DataGridCore', false);
+  // the main grid of a table tab owns the toolbar as soon as the tab is shown
+  export let activateOnTabVisible = false;
+  export const activator = createActivator('DataGridCore', activateOnTabVisible);
 
   export let dataEditorTypesBehaviourOverride = null;
 
@@ -2773,10 +2775,14 @@
     position: absolute;
     background-color: var(--theme-datagrid-corner-label-background);
     border: var(--theme-datagrid-corner-label-border);
-    padding: 3px;
+    border-radius: var(--dim-radius-md);
+    box-shadow: var(--theme-popup-shadow);
+    color: var(--theme-generic-font-grayed);
+    font-size: 12px;
+    padding: 3px 10px;
     right: 40px;
-    bottom: 20px;
-    opacity: 0.8;
+    bottom: 24px;
+    opacity: 0.9;
     transition: opacity 0.3s;
   }
 

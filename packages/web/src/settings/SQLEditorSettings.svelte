@@ -79,7 +79,7 @@
     <FormCheckboxField
     name="sqlEditor.hideColumnsPanel"
     label={_t('settings.sqlEditor.hideColumnsPanel', { defaultMessage: 'Hide Columns/Filters panel by default' })}
-    defaultValue={false}
+    defaultValue={true}
     />
 
     <FormCheckboxField

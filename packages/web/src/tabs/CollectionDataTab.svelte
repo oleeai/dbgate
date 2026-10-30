@@ -183,7 +183,7 @@
 
   registerMenu({ command: 'collectionTable.save', tag: 'save' });
 
-  const collapsedLeftColumnStore = writable(getLocalStorage('collection_collapsedLeftColumn', false));
+  const collapsedLeftColumnStore = writable(getLocalStorage('collection_collapsedLeftColumn', true));
   setContext('collapsedLeftColumnStore', collapsedLeftColumnStore);
   $: setLocalStorage('collection_collapsedLeftColumn', $collapsedLeftColumnStore);
 

@@ -350,6 +350,7 @@
   import { openWebLink } from '../utility/simpleTools';
   export let multiTabIndex;
   export let shownTab;
+  export let showDbRow = false;
 
   $: showTabFilterFunc = tab =>
     shouldShowTab(tab, $lockedDatabaseMode, $currentDatabase) && (tab.multiTabIndex || 0) == multiTabIndex;
@@ -372,6 +373,12 @@
   }));
 
   $: groupedTabs = groupTabs(tabsWithDb);
+
+  // the database row only earns its place when it tells you something the connection switcher doesn't
+  $: showDbRow =
+    !$lockedDatabaseMode &&
+    (groupedTabs.length > 1 ||
+      (groupedTabs.length == 1 && !!groupedTabs[0].tabDbKey && groupedTabs[0].tabDbKey != currentDbKey));
 
   // $: tabsByDb = _.groupBy(tabsWithDb, 'tabDbKey');
   // $: dbKeys = _.sortBy(_.keys(tabsByDb), [x => $tabDatabaseGroupOrder[x] || 0, x => x]);
@@ -597,7 +604,7 @@
   >
     {#each groupedTabs as tabGroup}
       <div class="db-wrapper">
-        {#if !$lockedDatabaseMode}
+        {#if showDbRow}
           <div
             class="db-name"
             class:selected={$draggingDbGroup
@@ -768,7 +775,8 @@
   .icons-wrapper {
     position: absolute;
     right: 5px;
-    font-size: 20pt;
+    font-size: 17px;
+    gap: 2px;
     top: 0;
     bottom: 0;
     display: flex;
@@ -778,21 +786,34 @@
   .icon-button {
     color: var(--theme-tabs-panel-foreground);
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--dim-radius-sm);
+    transition:
+      background-color var(--dim-transition-fast),
+      color var(--dim-transition-fast);
+  }
+  .icon-button:hover {
+    background-color: var(--theme-ui-hover);
   }
   .upgrade-button {
-    background: linear-gradient(135deg, #1686c8, #8a25b1);
-    border: 1px solid color-mix(in rgb, #1686c8 50%, #8a25b1 50%);
-    border-radius: 10px;
-    color: white;
+    background: var(--theme-ui-accent);
+    border: 1px solid var(--theme-ui-accent);
+    border-radius: 999px;
+    color: var(--theme-ui-accent-contrast);
     cursor: pointer;
-    font-size: 10pt;
-    padding: 5px;
+    font-weight: 500;
+    padding: 3px 10px;
     margin-top: 3px;
     margin-right: 3px;
-    font-size: 8pt;
+    font-size: 11px;
+    transition: background-color var(--dim-transition-fast);
   }
   .upgrade-button:hover {
-    background: linear-gradient(135deg, #0f5a85, #5c1870);
+    background: var(--theme-ui-accent-hover);
   }
   .icon-button:hover {
     color: var(--theme-tabs-panel-active-foreground);
@@ -832,7 +853,9 @@
     background-color: var(--theme-tabs-panel-item-background);
     display: flex;
     text-align: center;
-    font-size: 8pt;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
     border-bottom: var(--theme-tabs-panel-border);
     border-right: var(--theme-tabs-panel-border);
     cursor: pointer;
@@ -857,8 +880,10 @@
     background-color: var(--theme-tabs-panel-item-background);
     border-bottom: var(--theme-tabs-panel-border);
     border-right: var(--theme-tabs-panel-border);
-    padding-left: 15px;
-    padding-right: 15px;
+    border-top: 2px solid transparent;
+    padding-left: 12px;
+    padding-right: 10px;
+    font-size: 12.5px;
     flex-shrink: 1;
     flex-grow: 1;
     min-width: 10px;

@@ -11,6 +11,9 @@
     visibleTitleBar,
     rightPanelWidget,
     rightPanelWidth,
+    widgetRailWidth,
+    widgetRailExpandedWidth,
+    WIDGET_RAIL_COLLAPSED_WIDTH,
   } from './stores';
   import CommandPalette from './commands/CommandPalette.svelte';
   import splitterDrag from './utility/splitterDrag';
@@ -30,7 +33,22 @@
   $: currentThemeTypeClass = $currentThemeType == 'dark' ? 'theme-type-dark' : 'theme-type-light';
 
   const isElectron = !!getElectron();
+
+  // dragging the rail edge follows the pointer; narrow enough and it snaps back to icons only
+  let railDragWidth = null;
+  function handleRailResize(delta) {
+    railDragWidth = (railDragWidth ?? $widgetRailWidth) + delta;
+    if (railDragWidth < 110) {
+      $widgetRailWidth = WIDGET_RAIL_COLLAPSED_WIDTH;
+    } else {
+      const width = Math.round(Math.min(320, Math.max(160, railDragWidth)));
+      $widgetRailWidth = width;
+      $widgetRailExpandedWidth = width;
+    }
+  }
 </script>
+
+<svelte:window on:mouseup={() => (railDragWidth = null)} />
 
 <div class="not-supported" class:isElectron>
   <div class="m-5 big-icon"><FontIcon icon="img warn" /></div>
@@ -41,6 +59,7 @@
 <div
   class={`${currentThemeTypeClass} root dbgate-screen`}
   class:isElectron
+  class:railExpanded={$widgetRailWidth > WIDGET_RAIL_COLLAPSED_WIDTH}
   use:dragDropFileTarget
   on:contextmenu={e => e.preventDefault()}
 >
@@ -63,6 +82,12 @@
   <div class="tabs-container">
     <MultiTabsContainer />
   </div>
+  <div
+    class="horizontal-split-handle rail-splitter"
+    use:splitterDrag={'clientX'}
+    on:resizeSplitter={e => handleRailResize(e.detail)}
+    data-testid="Screen_railSplitter"
+  />
   {#if $selectedWidget && $visibleWidgetSideBar}
     <div
       class="horizontal-split-handle left-splitter"
@@ -111,10 +136,18 @@
     bottom: var(--dim-statusbar-height);
     width: var(--dim-widget-icon-size);
     background: var(--theme-widget-panel-background);
+    border-right: var(--theme-widget-panel-border);
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .railExpanded .iconbar {
+    border-right: 1px solid var(--theme-ui-border-subtle);
   }
   .statusbar {
     position: fixed;
     background: var(--theme-statusbar-background);
+    border-top: var(--theme-statusbar-border);
+    box-sizing: border-box;
     height: var(--dim-statusbar-height);
     left: 0;
     right: 0;
@@ -158,6 +191,12 @@
     background: var(--theme-toolstrip-background);
   }
 
+  .rail-splitter {
+    position: absolute;
+    top: var(--dim-header-top);
+    bottom: var(--dim-statusbar-height);
+    left: var(--dim-widget-icon-size);
+  }
   .left-splitter {
     position: absolute;
     top: var(--dim-header-top);

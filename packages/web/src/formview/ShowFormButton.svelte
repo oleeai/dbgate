@@ -18,11 +18,20 @@
 <style>
   div {
     position: absolute;
-    right: 0px;
-    top: 1px;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--dim-radius-sm);
     color: var(--theme-generic-font-grayed);
-    background-color: var(--theme-toolstrip-button-background-active);
-    border: var(--theme-toolstrip-button-border);
+    background-color: var(--theme-toolstrip-button-background-hover);
+    transition:
+      opacity var(--dim-transition-fast),
+      color var(--dim-transition-fast);
   }
 
   .secondary {
@@ -31,8 +40,6 @@
 
   div:hover {
     color: var(--theme-generic-font);
-    top: 1px;
-    right: 0px;
     cursor: pointer;
   }
 </style>

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import FontIcon from '../icons/FontIcon.svelte';
 
   import { currentDropDownMenu } from '../stores';
 
@@ -20,7 +19,6 @@
   }
 </script>
 
-<svelte:component this={component} {title} {icon} on:click={handleClick} {...$$restProps}>
+<svelte:component this={component} {title} {icon} iconAfter="icon chevron-down" on:click={handleClick} {...$$restProps}>
   {label}
-  <FontIcon icon="icon chevron-down" />
 </svelte:component>

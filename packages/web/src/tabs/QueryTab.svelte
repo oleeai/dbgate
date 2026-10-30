@@ -196,7 +196,7 @@
 
   export const activator = createActivator('QueryTab', false);
 
-  const collapsedLeftColumnStore = writable(getCurrentSettings()['sqlEditor.hideColumnsPanel'] ?? false);
+  const collapsedLeftColumnStore = writable(getCurrentSettings()['sqlEditor.hideColumnsPanel'] ?? true);
   setContext('collapsedLeftColumnStore', collapsedLeftColumnStore);
 
   const QUERY_PARAMETER_STYLES = [
@@ -1050,6 +1050,26 @@
 {/if}
 
 <style>
+  /* Execute is the one primary action of the editor */
+  :global([data-testid='QueryTab_executeButton']:not(.disabled)) {
+    background: var(--theme-ui-accent) !important;
+    color: var(--theme-ui-accent-contrast);
+  }
+  :global([data-testid='QueryTab_executeButton']:not(.disabled) .icon) {
+    color: var(--theme-ui-accent-contrast) !important;
+  }
+  :global([data-testid='QueryTab_executeButton']:not(.disabled):hover) {
+    background: var(--theme-ui-accent-hover) !important;
+  }
+  :global([data-testid='QueryTab_executeButton']:not(.disabled) + .split-icon) {
+    background: var(--theme-ui-accent) !important;
+    color: var(--theme-ui-accent-contrast) !important;
+    border-left: 1px solid color-mix(in srgb, var(--theme-ui-accent-contrast) 30%, transparent) !important;
+  }
+  :global([data-testid='QueryTab_executeButton']:not(.disabled) + .split-icon:hover) {
+    background: var(--theme-ui-accent-hover) !important;
+  }
+
   .ai-assistant-panel {
     flex: 1;
     display: flex;

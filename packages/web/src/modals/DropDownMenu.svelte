@@ -228,15 +228,17 @@
   ul {
     position: absolute;
     list-style: none;
-    background-color: var(--theme-toolstrip-button-background);
-    border-radius: var(--dim-radius-lg);
-    border: var(--theme-toolstrip-button-border);
+    background-color: var(--theme-menu-background);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-radius: 10px;
+    border: var(--theme-modal-border);
     box-shadow: var(--theme-popup-shadow);
-    padding: 4px;
+    padding: 5px;
     margin: 2px 0 0;
     max-width: calc(100vw - 16px);
-    animation: dropdown-fade-in var(--dim-transition-fast);
-    font-size: 14px;
+    animation: dropdown-fade-in 160ms var(--dim-ease-out);
+    font-size: 13px;
     text-align: left;
     min-width: 160px;
     z-index: 1050;
@@ -250,21 +252,30 @@
   @keyframes dropdown-fade-in {
     from {
       opacity: 0;
-      transform: translateY(-2px);
+      transform: translateY(-3px) scale(0.98);
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    ul {
+      background-color: var(--theme-modal-background);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
   }
 
   .keyText {
-    font-size: 12px;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
     color: var(--theme-generic-font-grayed);
     text-align: right;
     margin-left: 24px;
   }
 
   a {
-    padding: 4px 16px;
+    padding: 5px 10px;
     border-radius: var(--dim-radius-sm);
-    line-height: 1.42;
+    line-height: 1.4;
     white-space: nowrap;
     color: var(--theme-generic-font);
     display: flex;
@@ -282,14 +293,14 @@
   }
 
   a:hover:not(.disabled) {
-    background-color: var(--theme-toolstrip-button-background-active);
+    background-color: var(--theme-menu-item-hover);
     text-decoration: none;
     color: var(--theme-generic-font);
   }
 
   .divider {
-    margin: 4px 8px;
-    border-top: var(--theme-toolstrip-button-border);
+    margin: 5px 6px;
+    border-top: var(--theme-modal-border);
   }
 
   .menu-right {

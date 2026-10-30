@@ -1,9 +1,9 @@
 :root {
-  --dim-widget-icon-size: 50px;
-  --dim-statusbar-height: 22px;
+  --dim-widget-icon-size: 48px;
+  --dim-statusbar-height: 24px;
   --dim-left-panel-width: 300px;
   --dim-right-panel-width: 300px;
-  --dim-tabs-height: 33px;
+  --dim-tabs-height: 36px;
   --dim-tabs-panel-height: calc( var(--dim-visible-tabs-databases) * 20px + var(--dim-tabs-height) );
   --dim-splitter-thickness: 4px;
 
@@ -24,6 +24,14 @@
 
   --dim-toolbar-height: 30px;
   --dim-toolstrip-height: 28px;
+
+  /* one standard for every toolbar button */
+  --dim-tb-height: 28px;
+  --dim-tb-padding: 10px;
+  --dim-tb-gap: 6px;
+  --dim-tb-icon: 16px;
+  --dim-tb-chevron: 14px;
+
   --dim-titlebar-height: 30px;
   --dim-toolbar-top: calc(var(--dim-titlebar-height) * var(--dim-visible-titlebar));
   --dim-header-top: calc(
@@ -32,10 +40,13 @@
 
   --dim-large-form-margin: 20px;
 
-  --dim-radius-sm: 4px;
-  --dim-radius-md: 6px;
-  --dim-radius-lg: 10px;
+  --dim-radius-sm: 6px;
+  --dim-radius-md: 8px;
+  --dim-radius-lg: 12px;
+  --dim-radius-xl: 14px;
 
-  --dim-transition-fast: 120ms ease;
-  --dim-transition-base: 180ms ease;
+  --dim-ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --dim-ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --dim-transition-fast: 120ms var(--dim-ease-out);
+  --dim-transition-base: 200ms var(--dim-ease-out);
 }

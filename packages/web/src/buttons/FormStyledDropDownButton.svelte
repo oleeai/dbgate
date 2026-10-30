@@ -44,7 +44,8 @@
     margin: 2px;
     background: var(--theme-formbutton-background);
     color: var(--theme-formbutton-foreground);
-    border-radius: 2px;
+    border-radius: var(--dim-radius-md);
+    font-weight: 500;
     display: inline-block;
     cursor: pointer;
   }
@@ -65,14 +66,14 @@
   }
 
   div.outline {
-    background-color: transparent;
+    background-color: var(--theme-outlinebutton-background);
     color: var(--theme-outlinebutton-foreground);
     border: var(--theme-outlinebutton-border);
   }
 
-  input.outline:hover:not(.disabled) {
+  div.outline:hover:not(.disabled) {
+    background-color: var(--theme-outlinebutton-hover-background);
     color: var(--theme-outlinebutton-hover-foreground);
     border: var(--theme-outlinebutton-hover-border);
-    margin: 1px;
   }
 </style>

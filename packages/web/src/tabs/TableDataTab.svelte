@@ -120,6 +120,7 @@
   import { getLocalStorage, setLocalStorage } from '../utility/storageCache';
   import ToolStripContainer from '../buttons/ToolStripContainer.svelte';
   import ToolStripCommandButton from '../buttons/ToolStripCommandButton.svelte';
+  import ToolStripFilter from '../buttons/ToolStripFilter.svelte';
   import ToolStripExportButton, { createQuickExportHandlerRef } from '../buttons/ToolStripExportButton.svelte';
   import ToolStripCommandSplitButton from '../buttons/ToolStripCommandSplitButton.svelte';
   import { getBoolSettingsValue, getIntSettingsValue } from '../settings/settingsTools';
@@ -162,6 +163,17 @@
   });
 
   const [changeSetStore, dispatchChangeSet] = createUndoReducer(createChangeSet());
+  $: hasPendingChanges = changeSetChangedCount($changeSetStore?.value) > 0;
+
+  function setToolbarFilter(value) {
+    config.update(cfg => ({
+      ...cfg,
+      multiColumnFilter: value,
+      formViewRecordNumber: 0,
+      disabledMultiColumnFilter: false,
+    }));
+    cache.update(reloadDataCacheFunc);
+  }
 
   $: {
     setEditorData($changeSetStore.value);
@@ -299,7 +311,7 @@
 
   registerMenu({ command: 'tableData.save', tag: 'save' });
 
-  const collapsedLeftColumnStore = writable(getLocalStorage('dataGrid_collapsedLeftColumn', false));
+  const collapsedLeftColumnStore = writable(getLocalStorage('dataGrid_collapsedLeftColumn', true));
   setContext('collapsedLeftColumnStore', collapsedLeftColumnStore);
   $: setLocalStorage('dataGrid_collapsedLeftColumn', $collapsedLeftColumnStore);
 
@@ -327,6 +339,7 @@
 <ToolStripContainer>
   <TableDataGrid
     {...$$props}
+    activateOnTabVisible
     config={$config}
     setConfig={config.update}
     cache={$cache}
@@ -338,9 +351,75 @@
   />
 
   <svelte:fragment slot="toolstrip">
+    <ToolStripFilter
+      value={$config?.multiColumnFilter}
+      placeholder={_t('tableData.filterRows', { defaultMessage: 'Filter rows...' })}
+      onChange={setToolbarFilter}
+      data-testid="TableDataTab_filterRows"
+    />
+    <ToolStripCommandButton command="dataForm.goToFirst" hideDisabled iconOnly data-testid="TableDataTab_goToFirst" />
+    <ToolStripCommandButton command="dataForm.goToPrevious" hideDisabled iconOnly data-testid="TableDataTab_goToPrevious" />
+    <ToolStripCommandButton command="dataForm.goToNext" hideDisabled iconOnly data-testid="TableDataTab_goToNext" />
+    <ToolStripCommandButton command="dataForm.goToLast" hideDisabled iconOnly data-testid="TableDataTab_goToLast" />
+
+    <div class="toolstrip-spacer" />
+
+    <ToolStripCommandSplitButton
+      buttonLabel={autoRefreshStarted
+        ? _t('tableData.refreshEvery', {
+            defaultMessage: 'Refresh (every {autoRefreshInterval}s)',
+            values: { autoRefreshInterval },
+          })
+        : null}
+      commands={['dataGrid.refresh', ...createAutoRefreshMenu()]}
+      hideDisabled
+      iconOnly={!autoRefreshStarted}
+      data-testid="TableDataTab_refreshGrid"
+    />
+    <ToolStripCommandSplitButton
+      buttonLabel={autoRefreshStarted
+        ? _t('tableData.refreshEvery', {
+            defaultMessage: 'Refresh (every {autoRefreshInterval}s)',
+            values: { autoRefreshInterval },
+          })
+        : null}
+      commands={['dataForm.refresh', ...createAutoRefreshMenu()]}
+      hideDisabled
+      iconOnly={!autoRefreshStarted}
+      data-testid="TableDataTab_refreshForm"
+    />
+    <ToolStripCommandButton command="dataGrid.fetchAll" hideDisabled iconOnly data-testid="TableDataTab_fetchAll" />
+    <ToolStripExportButton {quickExportHandlerRef} />
+
+    <div class="toolstrip-divider" />
+
     <ToolStripButton
-      icon="icon structure"
-      iconAfter="icon arrow-link"
+      icon="icon columns-outline"
+      iconOnly
+      active={!$collapsedLeftColumnStore}
+      title={_t('tableData.viewColumns', { defaultMessage: 'View columns' })}
+      on:click={() => collapsedLeftColumnStore.update(x => !x)}
+    />
+    <ToolStripCommandButton command="dataGrid.switchToForm" hideDisabled iconOnly data-testid="TableDataTab_switchToForm" />
+    <ToolStripCommandButton
+      command="dataGrid.switchToTable"
+      hideDisabled
+      iconOnly
+      active
+      data-testid="TableDataTab_switchToTable"
+    />
+    <ToolStripCommandButton
+      command="dataGrid.toggleCellDataView"
+      hideDisabled
+      iconOnly
+      data-testid="TableDataTab_toggleCellDataView"
+    />
+
+    <div class="toolstrip-divider" />
+
+    <ToolStripButton
+      icon="icon table-cog"
+      title={_t('datagrid.structure', { defaultMessage: 'Structure' })}
       on:click={() => {
         if (tabPreviewMode && getBoolSettingsValue('defaultAction.useLastUsedAction', true)) {
           lastUsedDefaultActions.update(actions => ({
@@ -365,10 +444,9 @@
         });
       }}>{_t('datagrid.structure', { defaultMessage: 'Structure' })}</ToolStripButton
     >
-
     <ToolStripButton
-      icon="img sql-file"
-      iconAfter="icon arrow-link"
+      icon="icon code"
+      title="SQL"
       on:click={() => {
         if (tabPreviewMode && getBoolSettingsValue('defaultAction.useLastUsedAction', true)) {
           lastUsedDefaultActions.update(actions => ({
@@ -394,68 +472,37 @@
       }}>SQL</ToolStripButton
     >
 
-    <ToolStripCommandSplitButton
-      buttonLabel={autoRefreshStarted
-        ? _t('tableData.refreshEvery', {
-            defaultMessage: 'Refresh (every {autoRefreshInterval}s)',
-            values: { autoRefreshInterval },
-          })
-        : null}
-      commands={['dataGrid.refresh', ...createAutoRefreshMenu()]}
-      hideDisabled
-      data-testid="TableDataTab_refreshGrid"
-    />
-    <ToolStripCommandSplitButton
-      buttonLabel={autoRefreshStarted
-        ? _t('tableData.refreshEvery', {
-            defaultMessage: 'Refresh (every {autoRefreshInterval}s)',
-            values: { autoRefreshInterval },
-          })
-        : null}
-      commands={['dataForm.refresh', ...createAutoRefreshMenu()]}
-      hideDisabled
-      data-testid="TableDataTab_refreshForm"
-    />
-
-    <!-- <ToolStripCommandButton command="dataGrid.refresh" hideDisabled />
-    <ToolStripCommandButton command="dataForm.refresh" hideDisabled /> -->
-
-    <ToolStripCommandButton command="dataForm.goToFirst" hideDisabled data-testid="TableDataTab_goToFirst" />
-    <ToolStripCommandButton command="dataForm.goToPrevious" hideDisabled data-testid="TableDataTab_goToPrevious" />
-    <ToolStripCommandButton command="dataForm.goToNext" hideDisabled data-testid="TableDataTab_goToNext" />
-    <ToolStripCommandButton command="dataForm.goToLast" hideDisabled data-testid="TableDataTab_goToLast" />
+    <div class="toolstrip-divider" />
 
     <ToolStripCommandButton
-      command="tableData.save"
-      iconAfter={getNumberIcon(changeSetChangedCount($changeSetStore?.value))}
-      data-testid="TableDataTab_save"
+      command="dataGrid.deleteSelectedRows"
+      hideDisabled
+      icon="icon trash"
+      variant="destructive"
+      buttonLabel={_t('tableData.delete', { defaultMessage: 'Delete' })}
+      data-testid="TableDataTab_deleteSelectedRows"
     />
     <ToolStripCommandButton
       command="dataGrid.revertAllChanges"
       hideDisabled
+      iconOnly
+      icon="icon undo"
       data-testid="TableDataTab_revertAllChanges"
     />
-    <ToolStripCommandButton command="dataGrid.insertNewRow" hideDisabled data-testid="TableDataTab_insertNewRow" />
     <ToolStripCommandButton
-      command="dataGrid.deleteSelectedRows"
+      command="tableData.save"
       hideDisabled
-      data-testid="TableDataTab_deleteSelectedRows"
+      variant="primary"
+      iconAfter={getNumberIcon(changeSetChangedCount($changeSetStore?.value))}
+      data-testid="TableDataTab_save"
     />
-    <ToolStripCommandButton command="dataGrid.switchToForm" hideDisabled data-testid="TableDataTab_switchToForm" />
-    <ToolStripCommandButton command="dataGrid.switchToTable" hideDisabled data-testid="TableDataTab_switchToTable" />
-    <ToolStripExportButton {quickExportHandlerRef} />
-    <ToolStripCommandButton command="dataGrid.fetchAll" hideDisabled data-testid="TableDataTab_fetchAll" />
-
-    <ToolStripButton
-      icon={$collapsedLeftColumnStore ? 'icon columns-outline' : 'icon columns'}
-      on:click={() => collapsedLeftColumnStore.update(x => !x)}
-      >{_t('tableData.viewColumns', { defaultMessage: 'View columns' })}</ToolStripButton
-    >
-
     <ToolStripCommandButton
-      command="dataGrid.toggleCellDataView"
+      command="dataGrid.insertNewRow"
       hideDisabled
-      data-testid="TableDataTab_toggleCellDataView"
+      icon="icon plus"
+      variant={hasPendingChanges ? 'secondary' : 'primary'}
+      buttonLabel={_t('tableData.insertRow', { defaultMessage: 'Insert row' })}
+      data-testid="TableDataTab_insertNewRow"
     />
   </svelte:fragment>
 </ToolStripContainer>

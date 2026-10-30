@@ -23,11 +23,11 @@
 
 <style>
   .wrapper {
-    padding: 6px 8px;
+    height: 27px;
+    box-sizing: border-box;
+    padding: 0 14px;
     font-weight: 600;
-    font-size: 8.5pt;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: 11.5px;
     background-color: var(--theme-sidebar-section-background);
     border: var(--theme-sidebar-section-border);
     border-top: var(--theme-sidebar-section-border-top);
