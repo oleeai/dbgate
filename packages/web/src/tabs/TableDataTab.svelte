@@ -471,6 +471,19 @@
         });
       }}>SQL</ToolStripButton
     >
+    <ToolStripButton
+      icon="icon table-details"
+      title={_t('tableData.detailsHint', { defaultMessage: 'Indexes, triggers, policies and enums' })}
+      on:click={() =>
+        openNewTab({
+          title: pureName,
+          icon: 'img table-details',
+          tabComponent: 'TableDetailsTab',
+          tabPreviewMode: true,
+          props: { schemaName, pureName, conid, database, objectTypeField: 'tables' },
+        })}
+      data-testid="TableDataTab_details">{_t('tableData.details', { defaultMessage: 'Details' })}</ToolStripButton
+    >
 
     <div class="toolstrip-divider" />
 
