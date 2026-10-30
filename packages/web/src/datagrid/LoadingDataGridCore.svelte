@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getIntSettingsValue } from '../settings/settingsTools';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, setContext } from 'svelte';
+  import { writable } from 'svelte/store';
 
   import createRef from '../utility/createRef';
   import { useSettings } from '../utility/metadataLoaders';
@@ -21,6 +22,9 @@
   export let preprocessLoadedRow = null;
   export let setLoadedRows = null;
   export let isRawMode = false;
+  // { offset, limit }: load only this window of rows (one page) instead of scrolling through all of them
+  export let paging = null;
+  export let onLoadStateChanged = null;
 
   // export let griderFactory;
 
@@ -30,6 +34,8 @@
   let loadedTime = new Date().getTime();
   let allRowCount = null;
   let allRowCountError = null;
+  let isRowCountLoading = false;
+  let rowCountToken = 0;
   let errorMessage = null;
   let domGrid;
 
@@ -42,13 +48,33 @@
   const loadNextDataRef = createRef(false);
   const loadedTimeRef = createRef(null);
 
+  // row headers number rows from the start of the page
+  const rowNumberOffset = writable(0);
+  setContext('dataGridRowNumberOffset', rowNumberOffset);
+  $: rowNumberOffset.set(paging?.offset ?? 0);
+
   export function resetLoadedAll() {
     isLoadedAll = false;
     domGrid.loadNextDataIfNeeded();
   }
 
-  const handleLoadRowCount = async () => {
-    const result = await loadRowCount($$props);
+  export function reloadRowCount(timeout = undefined) {
+    handleLoadRowCount(timeout);
+  }
+
+  function shouldLoadRowCount() {
+    if (isRawMode || allRowCount != null || isRowCountLoading) return false;
+    // with paging, a count that failed (eg. timed out on a large table) is retried only on request
+    return !(paging && allRowCountError);
+  }
+
+  const handleLoadRowCount = async (timeout = undefined) => {
+    const token = ++rowCountToken;
+    isRowCountLoading = true;
+    const result = await loadRowCount($$props, timeout);
+    // the data was reloaded meanwhile, this count is for the old filter
+    if (token != rowCountToken) return;
+    isRowCountLoading = false;
     if (result != null && typeof result === 'object' && result.errorMessage) {
       allRowCount = null;
       allRowCountError = result.errorMessage;
@@ -68,11 +94,9 @@
 
     loadedTimeRef.set(loadStart);
 
-    const nextRows = await loadDataPage(
-      $$props,
-      loadedRows.length,
-      getIntSettingsValue('dataGrid.pageSize', 100, 5, 50000)
-    );
+    const chunkSize = getIntSettingsValue('dataGrid.pageSize', 100, 5, 50000);
+    const limit = paging ? Math.min(chunkSize, paging.limit - loadedRows.length) : chunkSize;
+    const nextRows = await loadDataPage($$props, (paging?.offset ?? 0) + loadedRows.length, limit);
     if (loadedTimeRef.get() !== loadStart) {
       // new load was dispatched
       return;
@@ -83,10 +107,10 @@
     if (nextRows.errorMessage) {
       errorMessage = nextRows.errorMessage;
     } else {
-      if (allRowCount == null && !isRawMode) handleLoadRowCount();
+      if (shouldLoadRowCount()) handleLoadRowCount();
 
       loadedRows = [...loadedRows, ...(preprocessLoadedRow ? nextRows.map(preprocessLoadedRow) : nextRows)];
-      isLoadedAll = nextRows.length === 0;
+      isLoadedAll = paging ? nextRows.length < limit || loadedRows.length >= paging.limit : nextRows.length === 0;
       //   const loadedInfo = {
       //     loadedRows: [...loadedRows, ...nextRows],
       //     loadedTime,
@@ -269,14 +293,21 @@
   }
 
   function reload() {
+    allRowCount = null;
+    allRowCountError = null;
+    isRowCountLoading = false;
+    rowCountToken++;
+    reloadRows();
+  }
+
+  // reloads the rows but keeps the row count, which doesn't depend on the page
+  function reloadRows() {
     if (fetchAllHandle) {
       fetchAllHandle.cancel();
       fetchAllHandle = null;
     }
     stopReader();
     isFetchingFromDb = false;
-    allRowCount = null;
-    allRowCountError = null;
     isLoading = false;
     isFetchingAll = false;
     fetchAllLoadedCount = 0;
@@ -292,6 +323,28 @@
   $: if (display?.cache?.refreshTime > loadedTime) {
     reload();
   }
+
+  let pagingKey = undefined;
+  $: handlePagingChanged(paging);
+
+  function handlePagingChanged(value) {
+    const key = value ? `${value.offset}:${value.limit}` : null;
+    if (key === pagingKey) return;
+    const isFirst = pagingKey === undefined;
+    pagingKey = key;
+    if (isFirst) return;
+    reloadRows();
+    domGrid?.resetVerticalScroll();
+  }
+
+  $: onLoadStateChanged?.({
+    loadedCount: loadedRows.length,
+    isLoading,
+    isLoadedAll,
+    allRowCount: rowCountLoaded || allRowCount,
+    allRowCountError,
+    isRowCountLoading,
+  });
 
   $: {
     if (masterLoadedTime && masterLoadedTime > loadedTime && display) {
@@ -313,7 +366,7 @@
   {...$$props}
   bind:this={domGrid}
   onLoadNextData={handleLoadNextData}
-  onFetchAllRows={fetchAllRows}
+  onFetchAllRows={paging ? null : fetchAllRows}
   {errorMessage}
   {isLoading}
   {isFetchingAll}
@@ -321,7 +374,7 @@
   {fetchAllLoadedCount}
   allRowCount={rowCountLoaded || allRowCount}
   {allRowCountError}
-  onReloadRowCount={handleLoadRowCount}
+  onReloadRowCount={() => handleLoadRowCount()}
   {isLoadedAll}
   {loadedTime}
   {grider}

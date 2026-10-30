@@ -346,6 +346,7 @@
     setCache={cache.update}
     changeSetState={$changeSetStore}
     focusOnVisible
+    pagingFooter
     {changeSetStore}
     {dispatchChangeSet}
   />
