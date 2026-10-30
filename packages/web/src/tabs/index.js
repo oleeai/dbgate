@@ -29,6 +29,7 @@ import * as AppLogTab from './AppLogTab.svelte';
 import * as SettingsTab from './SettingsTab.svelte';
 import * as BackupDatabaseTab from './BackupDatabaseTab.svelte';
 import * as RestoreDatabaseTab from './RestoreDatabaseTab.svelte';
+import * as SchemaVisualizerTab from './SchemaVisualizerTab.svelte';
 
 import protabs from './index-pro';
 
@@ -64,5 +65,6 @@ export default {
   SettingsTab,
   BackupDatabaseTab,
   RestoreDatabaseTab,
+  SchemaVisualizerTab,
   ...protabs,
 };
