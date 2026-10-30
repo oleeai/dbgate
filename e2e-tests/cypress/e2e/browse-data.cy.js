@@ -442,10 +442,9 @@ describe('Data browser data', () => {
     cy.contains('King').click();
     cy.testid('TableDataTab_deleteSelectedRows').click();
     cy.testid('TableDataTab_insertNewRow').click();
-    cy.get('body').realType('Novak');
-    cy.get('body').realPress('{enter}');
-    cy.realPress(['ArrowRight']);
-    cy.get('body').realType('Karel');
+    cy.testid('RowSidePanel_input_LastName').type('Novak');
+    cy.testid('RowSidePanel_input_FirstName').type('Karel');
+    cy.testid('RowSidePanel_save').click();
     cy.testid('TableDataTab_save').click();
     cy.contains('INSERT INTO `Employee`');
     cy.contains("SET `FirstName`='Jane'");

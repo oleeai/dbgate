@@ -119,6 +119,7 @@
   export const activator = createActivator('DataGrid', false);
 
   let domColumnManager;
+  let rowSidePanelOpen = false;
 
   const selectedMacro = writable(null);
   setContext('selectedMacro', selectedMacro);
@@ -313,10 +314,16 @@
                   if (
                     value[0]?.isSelectedFullRow &&
                     !isFormView &&
+                    !rowSidePanelOpen &&
                     !$settings?.['dataGrid.disableCellDataViewAutoOpen']
                   ) {
                     showCellDataView('row_header');
                   }
+                }}
+                onRowSidePanelChanged={isOpen => {
+                  // the row sheet shows the whole row, the cell view next to it would only repeat it
+                  rowSidePanelOpen = isOpen;
+                  if (isOpen) cellDataViewVisible = false;
                 }}
                 onChangeSelectedColumns={cols => {
                   if (domColumnManager) domColumnManager.setSelectedColumns(cols);
