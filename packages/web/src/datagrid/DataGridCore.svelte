@@ -104,6 +104,16 @@
   });
 
   registerCommand({
+    id: 'dataGrid.editRow',
+    category: __t('command.datagrid', { defaultMessage: 'Data grid' }),
+    name: __t('command.datagrid.editRow', { defaultMessage: 'Edit row' }),
+    icon: 'mdi mdi-table-edit',
+    usageAnalytics: () => getDataGridUsage('edit_row_panel'),
+    testEnabled: () => getCurrentDataGrid()?.editRowEnabled(),
+    onClick: () => getCurrentDataGrid().editRow(),
+  });
+
+  registerCommand({
     id: 'dataGrid.cloneRows',
     category: __t('command.datagrid', { defaultMessage: 'Data grid' }),
     name: __t('command.datagrid.cloneRows', { defaultMessage: 'Clone rows' }),
@@ -487,6 +497,7 @@
   import SaveArchiveModal from '../modals/SaveArchiveModal.svelte';
   import hasPermission from '../utility/hasPermission';
   import macros from '../macro/macros';
+  import RowSidePanel from './RowSidePanel.svelte';
   import { trackUsage } from '../utility/usageAnalytics';
 
   export let onLoadNextData = undefined;
@@ -535,6 +546,9 @@
   export let onGetSelectionMenu = null;
   export let onOpenChart = null;
   export let macroCondition = null;
+  // table data grids edit and insert rows in a side sheet
+  export let allowRowSidePanel = false;
+  export let onRowSidePanelChanged = null;
 
   // the main grid of a table tab owns the toolbar as soon as the tab is shown
   export let activateOnTabVisible = false;
@@ -826,8 +840,64 @@
     });
   }
 
+  let rowSidePanel = null;
+
+  function setRowSidePanel(value) {
+    rowSidePanel = value;
+    onRowSidePanelChanged?.(!!value);
+    invalidateCommands();
+  }
+
+  // a right click selects a cell without moving the current cell, so the selection wins
+  function getRowToEdit() {
+    const rowIndexes = getSelectedRowIndexes();
+    if (_.isNumber(currentCell?.[0]) && rowIndexes.includes(currentCell[0])) return currentCell[0];
+    return rowIndexes[0] ?? currentCell?.[0];
+  }
+
+  export function editRowEnabled() {
+    const rowIndex = getRowToEdit();
+    return allowRowSidePanel && _.isNumber(rowIndex) && !!grider?.getRowData(rowIndex);
+  }
+
+  export function editRow(rowIndex = getRowToEdit()) {
+    if (!allowRowSidePanel || !_.isNumber(rowIndex)) return;
+    setRowSidePanel({ mode: 'edit', rowIndex });
+    // a whole-row selection would open the cell data view next to the sheet
+    if (!isRegularCell(currentCell) || currentCell[0] != rowIndex) selectRow(rowIndex);
+  }
+
+  function closeRowSidePanel() {
+    setRowSidePanel(null);
+    if (_.isNumber(currentCell?.[0]) && selectedCells.some(cell => cell[1] == 'header')) selectRow(currentCell[0]);
+    domFocusField?.focus();
+  }
+
+  async function selectRow(rowIndex) {
+    const cell = [rowIndex, _.isNumber(currentCell?.[1]) ? currentCell[1] : 0];
+    // @ts-ignore
+    currentCell = cell;
+    // @ts-ignore
+    selectedCells = [cell];
+    await tick();
+    scrollIntoView(cell);
+  }
+
+  // while the sheet is open it follows the grid's current row
+  $: if (rowSidePanel?.mode == 'edit' && _.isNumber(currentCell?.[0]) && currentCell[0] != rowSidePanel.rowIndex) {
+    rowSidePanel = { ...rowSidePanel, rowIndex: currentCell[0] };
+  }
+
+  $: if (rowSidePanel?.mode == 'edit' && grider && rowSidePanel.rowIndex >= grider.rowCount && isLoadedAll) {
+    setRowSidePanel(null);
+  }
+
   export async function insertNewRow() {
     if (!grider.canInsert) return;
+    if (allowRowSidePanel) {
+      setRowSidePanel({ mode: 'insert', rowIndex: null });
+      return;
+    }
     const rowIndex = grider.insertRow();
     const cell = [rowIndex, (currentCell && currentCell[1]) || 0];
     // @ts-ignore
@@ -1659,6 +1729,12 @@
     if (display.focusedColumns) display.focusColumns(null);
   }
 
+  function handleGridDoubleClick(event) {
+    if (!allowRowSidePanel || event.target.closest('.showFormButtonMarker')) return;
+    const cell = cellFromEvent(event);
+    if (isRowHeaderCell(cell) && grider.getRowData(cell[0])) editRow(cell[0]);
+  }
+
   function handleBlur() {
     shiftDragStartCell = null;
     dragStartCell = null;
@@ -2127,6 +2203,10 @@
   function handleSetFormView(rowData, column) {
     if (column) {
       openReferenceForm(rowData, column, conid, database);
+    } else if (allowRowSidePanel) {
+      // the row header's form button opens the row in the side sheet instead of a new tab
+      const rowIndex = _.range(grider.rowCount).find(index => grider.getRowData(index) === rowData);
+      editRow(rowIndex);
     } else {
       openPrimaryKeyForm(rowData, display.baseTable, conid, database);
     }
@@ -2236,6 +2316,7 @@
     { command: 'dataGrid.revertRowChanges', hideDisabled: true },
     { command: 'dataGrid.revertAllChanges', hideDisabled: true },
     { command: 'dataGrid.deleteSelectedRows', hideDisabled: true },
+    { command: 'dataGrid.editRow', hideDisabled: true },
     { command: 'dataGrid.insertNewRow', hideDisabled: true },
     { command: 'dataGrid.cloneRows', hideDisabled: true },
     { command: 'dataGrid.setNull', hideDisabled: true },
@@ -2427,6 +2508,7 @@
         on:mousedown={handleGridMouseDown}
         on:mousemove={handleGridMouseMove}
         on:mouseup={handleGridMouseUp}
+        on:dblclick={handleGridDoubleClick}
       >
         <thead>
           <tr>
@@ -2741,6 +2823,25 @@
       />
     {/if}
   </div>
+
+  {#if rowSidePanel}
+    <RowSidePanel
+      {display}
+      {grider}
+      {conid}
+      {database}
+      mode={rowSidePanel.mode}
+      rowIndex={rowSidePanel.rowIndex}
+      editorTypes={getEditorTypes()}
+      onClose={closeRowSidePanel}
+      onNavigate={delta =>
+        moveCurrentCell(rowSidePanel.rowIndex + delta, _.isNumber(currentCell?.[1]) ? currentCell[1] : 0)}
+      onInserted={rowIndex => {
+        closeRowSidePanel();
+        selectRow(rowIndex);
+      }}
+    />
+  {/if}
 {/if}
 
 <style>

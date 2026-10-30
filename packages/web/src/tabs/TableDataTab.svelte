@@ -369,6 +369,7 @@
     changeSetState={$changeSetStore}
     focusOnVisible
     pagingFooter
+    allowRowSidePanel
     {changeSetStore}
     {dispatchChangeSet}
   />
