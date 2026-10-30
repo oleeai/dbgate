@@ -131,22 +131,14 @@ describe('Backup table', () => {
     cy.get('body').realType('Wermont{enter}');
 
     cy.testid('TableDataTab_insertNewRow').click();
-    cy.get('body').realType('Modranska{enter}');
-    cy.realPress(['ArrowLeft']);
-    cy.realPress(['ArrowLeft']);
-    cy.get('body').realType('13{enter}');
-    cy.realPress(['ArrowRight']);
-    cy.get('body').realType('1{enter}');
-    cy.realPress(['ArrowRight']);
-    cy.realPress(['ArrowRight']);
-    cy.realPress(['ArrowRight']);
-    cy.get('body').realType('Prague{enter}');
-    cy.realPress(['ArrowRight']);
-    cy.get('body').realType('CZ{enter}');
-    cy.realPress(['ArrowRight']);
-    cy.get('body').realType('10000{enter}');
-    cy.realPress(['ArrowRight']);
-    cy.get('body').realType('111222333{enter}');
+    cy.testid('RowSidePanel_input_address_id').type('13');
+    cy.testid('RowSidePanel_input_customer_id').type('1');
+    cy.testid('RowSidePanel_input_line1').type('Modranska');
+    cy.testid('RowSidePanel_input_city').type('Prague');
+    cy.testid('RowSidePanel_input_state').type('CZ');
+    cy.testid('RowSidePanel_input_zip_code').type('10000');
+    cy.testid('RowSidePanel_input_phone').type('111222333');
+    cy.testid('RowSidePanel_save').click();
 
     cy.testid('TableDataTab_save').click();
     cy.testid('ConfirmSqlModal_okButton', { timeout: 10000 }).click();
