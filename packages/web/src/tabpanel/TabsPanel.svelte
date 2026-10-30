@@ -347,7 +347,7 @@
   import { getBoolSettingsValue } from '../settings/settingsTools';
   import NewObjectModal from '../modals/NewObjectModal.svelte';
   import { isProApp } from '../utility/proTools';
-  import { openWebLink } from '../utility/simpleTools';
+  import OleeAiLogo from '../icons/OleeAiLogo.svelte';
   export let multiTabIndex;
   export let shownTab;
   export let showDbRow = false;
@@ -598,7 +598,7 @@
   <div
     class="tabs"
     class:can-split={allowSplitTab && isProApp()}
-    class:tabs-upgrade-button={!isProApp()}
+    class:tabs-brand-badge={!isProApp()}
     on:wheel={handleTabsWheel}
     bind:this={domTabs}
   >
@@ -738,17 +738,15 @@
     {/if}
 
     {#if !isProApp()}
-      <div
-        class="upgrade-button"
-        on:click={() => {
-          openWebLink(
-            `https://www.dbgate.io/purchase/${isElectronAvailable() ? 'premium' : 'team-premium'}/?utm_campaign=premiumUpgradeButton`
-          );
-        }}
-        title="Upgrade to Premium"
-        data-testid="TabsPanel_buttonUpgrade"
-      >
-        <FontIcon icon="icon premium" /> Upgrade
+      <div class="brand-badge" title="DbGate, maintained by Olee AI" data-testid="TabsPanel_brandBadge">
+        <OleeAiLogo height={13} />
+        <svg class="brand-times" width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
+          <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        </svg>
+        <span class="brand-dbgate">
+          <img src="logo192.png" alt="" width="14" height="14" />
+          DbGate
+        </span>
       </div>
     {/if}
 
@@ -799,21 +797,40 @@
   .icon-button:hover {
     background-color: var(--theme-ui-hover);
   }
-  .upgrade-button {
-    background: var(--theme-ui-accent);
-    border: 1px solid var(--theme-ui-accent);
+  .brand-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 24px;
+    margin-right: 6px;
+    padding: 0 10px 0 11px;
     border-radius: 999px;
-    color: var(--theme-ui-accent-contrast);
-    cursor: pointer;
-    font-weight: 500;
-    padding: 3px 10px;
-    margin-top: 3px;
-    margin-right: 3px;
-    font-size: 11px;
-    transition: background-color var(--dim-transition-fast);
+    border: 1px solid var(--theme-ui-border);
+    background: var(--theme-ui-surface-2);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.08),
+      inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
+    white-space: nowrap;
+    user-select: none;
+    cursor: default;
   }
-  .upgrade-button:hover {
-    background: var(--theme-ui-accent-hover);
+  .brand-times {
+    display: block;
+    flex-shrink: 0;
+    color: var(--theme-ui-text-tertiary);
+  }
+  .brand-dbgate {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--theme-ui-text);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .brand-dbgate img {
+    display: block;
+    border-radius: 50%;
   }
   .icon-button:hover {
     color: var(--theme-tabs-panel-active-foreground);
@@ -829,8 +846,8 @@
     bottom: 0;
   }
 
-  .tabs-upgrade-button {
-    right: 110px;
+  .tabs-brand-badge {
+    right: 200px;
   }
   .tabs.can-split {
     right: 60px;

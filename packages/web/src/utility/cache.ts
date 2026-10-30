@@ -1,4 +1,4 @@
-import { apiOn, transformApiArgsInv } from './api';
+import { apiOn, onEventSourceReconnect, transformApiArgsInv } from './api';
 import getAsArray from './getAsArray';
 import stableStringify from 'json-stable-stringify';
 
@@ -166,3 +166,4 @@ export function batchDispatchCacheTriggers(predicate) {
 }
 
 apiOn('changed-cache', reloadTrigger => dispatchCacheChange(reloadTrigger));
+onEventSourceReconnect(() => batchDispatchCacheTriggers(() => true));

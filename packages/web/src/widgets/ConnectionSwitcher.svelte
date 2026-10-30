@@ -3,6 +3,7 @@
   import { tick } from 'svelte';
   import { extractDbNameFromComposite, filterName, getConnectionLabel } from 'dbgate-tools';
   import FontIcon from '../icons/FontIcon.svelte';
+  import EngineLogo from '../icons/EngineLogo.svelte';
   import ConnectionSwitcherDatabases from './ConnectionSwitcherDatabases.svelte';
   import { openConnection } from '../appobj/ConnectionAppObject.svelte';
   import { currentDatabase, openedConnections } from '../stores';
@@ -29,7 +30,7 @@
 
   $: title = currentConnection
     ? getConnectionLabel(currentConnection, { allowExplicitDatabase: false })
-    : _t('connectionSwitcher.noConnection', { defaultMessage: 'Select a database' });
+    : _t('connectionSwitcher.chooseDatabase', { defaultMessage: 'Choose a database' });
   $: subtitle = currentConnection
     ? _.compact([currentDbName, currentSchema, engineName(currentConnection)]).join(' · ')
     : _t('connectionSwitcher.noConnectionHint', { defaultMessage: 'No connection selected' });
@@ -106,13 +107,25 @@
 <svelte:window on:mousedown={handleWindowMouseDown} on:keydown={handleWindowKeyDown} />
 
 <div class="switcher" bind:this={domRoot}>
-  <button class="trigger" class:open on:click={toggle} data-testid="ConnectionSwitcher_trigger">
-    <span class="avatar" class:empty={!currentConnection}>
-      <FontIcon icon="icon database-outline" />
+  <button
+    class="trigger"
+    class:open
+    class:placeholder={!currentConnection}
+    on:click={toggle}
+    data-testid="ConnectionSwitcher_trigger"
+  >
+    <span class="avatar" class:avatar-placeholder={!currentConnection}>
+      {#if currentConnection}
+        <EngineLogo connection={currentConnection} size={18} />
+      {:else}
+        <FontIcon icon="icon database-outline" />
+      {/if}
     </span>
     <span class="text">
       <span class="title">{title}</span>
-      <span class="subtitle">{subtitle}</span>
+      {#if currentConnection}
+        <span class="subtitle">{subtitle}</span>
+      {/if}
     </span>
     <span class="chevron"><FontIcon icon="icon unfold" /></span>
   </button>
@@ -138,7 +151,7 @@
             class:active={isCurrent && connection.singleDatabase}
             on:click={() => handlePickConnection(connection)}
           >
-            <span class="avatar small" class:current={isCurrent}><FontIcon icon="icon database-outline" /></span>
+            <span class="avatar small" class:current={isCurrent}><EngineLogo {connection} size={14} /></span>
             <span class="row-label">{getConnectionLabel(connection)}</span>
             <span class="row-meta">{engineName(connection)}</span>
             {#if isCurrent && connection.singleDatabase}
@@ -183,7 +196,7 @@
 <style>
   .switcher {
     position: relative;
-    padding: 10px 8px 2px;
+    padding: 10px 10px 2px;
     flex-shrink: 0;
   }
 
@@ -192,8 +205,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px;
-    border: none;
+    min-height: 44px;
+    padding: 5px 10px 5px 6px;
+    border: 1px solid transparent;
     border-radius: var(--dim-radius-md);
     background: transparent;
     color: var(--theme-sidebar-foreground);
@@ -205,18 +219,23 @@
       border-color var(--dim-transition-fast),
       transform 100ms var(--dim-ease-out);
   }
-  .trigger:hover {
-    background: var(--theme-sidebar-background-hover);
-  }
+  .trigger:hover,
   .trigger.open {
-    background: var(--theme-sidebar-background-active);
+    background: var(--theme-sidebar-background-hover);
+    border-color: var(--theme-ui-border);
   }
   .trigger:active {
-    transform: scale(0.99);
+    transform: scale(0.985);
+  }
+  .trigger:focus-visible {
+    outline: none;
+    border-color: var(--theme-input-border-focus-color);
+    box-shadow: var(--theme-input-focus-ring);
   }
 
   .avatar {
     flex-shrink: 0;
+    box-sizing: border-box;
     width: 28px;
     height: 28px;
     border-radius: 7px;
@@ -225,11 +244,24 @@
     justify-content: center;
     font-size: 16px;
     color: var(--theme-ui-accent-strong);
-    background: var(--theme-ui-accent-soft);
+    background: var(--theme-ui-surface-2);
+    box-shadow:
+      inset 0 0 0 1px var(--theme-ui-border),
+      0 1px 2px rgb(0 0 0 / 0.12);
   }
-  .avatar.empty {
-    color: var(--theme-generic-font-grayed);
-    background: var(--theme-ui-hover);
+  .avatar.avatar-placeholder {
+    color: var(--theme-ui-text-tertiary);
+    background: transparent;
+    box-shadow: none;
+    border: 1px dashed var(--theme-ui-border-strong);
+    transition:
+      color var(--dim-transition-fast),
+      border-color var(--dim-transition-fast);
+  }
+  .trigger:hover .avatar.avatar-placeholder,
+  .trigger.open .avatar.avatar-placeholder {
+    color: var(--theme-ui-accent-strong);
+    border-color: var(--theme-ui-accent);
   }
   .avatar.small {
     width: 20px;
@@ -238,10 +270,10 @@
     font-size: 13px;
     color: var(--theme-generic-font-grayed);
     background: var(--theme-ui-hover);
+    box-shadow: none;
   }
   .avatar.small.current {
-    color: var(--theme-ui-accent-strong);
-    background: var(--theme-ui-accent-soft);
+    box-shadow: inset 0 0 0 1px var(--theme-ui-accent);
   }
 
   .text {
@@ -259,25 +291,37 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .trigger.placeholder .title {
+    font-weight: 500;
+    color: var(--theme-ui-text-secondary);
+  }
+  .trigger.placeholder:hover .title {
+    color: var(--theme-sidebar-foreground);
+  }
   .subtitle {
-    font-size: 11px;
-    color: var(--theme-generic-font-grayed);
+    font-size: 11.5px;
+    color: var(--theme-ui-text-tertiary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .chevron {
     flex-shrink: 0;
-    color: var(--theme-generic-font-grayed);
-    font-size: 14px;
+    color: var(--theme-ui-text-tertiary);
+    font-size: 13px;
+    transition: color var(--dim-transition-fast);
+  }
+  .trigger:hover .chevron,
+  .trigger.open .chevron {
+    color: var(--theme-ui-text-secondary);
   }
 
   .popover {
     position: absolute;
     z-index: 1000;
-    top: calc(100% - 2px);
-    left: 8px;
-    right: 8px;
+    top: calc(100% + 4px);
+    left: 10px;
+    right: 10px;
     display: flex;
     flex-direction: column;
     max-height: min(480px, 70vh);
@@ -296,6 +340,15 @@
     from {
       opacity: 0;
       transform: translateY(-4px) scale(0.98);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .popover {
+      animation: none;
+    }
+    .trigger:active {
+      transform: none;
     }
   }
 

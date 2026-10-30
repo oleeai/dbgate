@@ -7,6 +7,7 @@ import {
   getOpenedTabs,
 } from '../stores';
 import { apiCall, getVolatileConnections, strmid } from './api';
+import { batchDispatchCacheTriggers } from './cache';
 import hasPermission from '../utility/hasPermission';
 import { getConfig } from './metadataLoaders';
 import { onMount } from 'svelte';
@@ -17,7 +18,11 @@ import { onMount } from 'svelte';
 //   apiCall('server-connections/ping', { connections });
 // };
 
-const doServerPing = value => {
+// Connections listed by the last finished ping. The server sends this tab the events of those
+// connections only (database status, structure, ...), see serverConnections.ping.
+let pingedConids = [];
+
+const doServerPing = async value => {
   const config = getCurrentConfig();
 
   const conidArray = [...value];
@@ -29,10 +34,20 @@ const doServerPing = value => {
     conidArray.push(config.singleConnection._id);
   }
 
-  apiCall('server-connections/ping', {
-    conidArray: _.compact(conidArray),
+  const conids = _.compact(conidArray);
+  await apiCall('server-connections/ping', {
+    conidArray: conids,
     strmid,
   });
+
+  // Events of a connection sent before a ping listed it never reached this tab - e.g. a database
+  // opened from a restored tab finished loading its structure meanwhile, and its object list kept
+  // showing "Loading database structure". Whatever was loaded for such a connection is loaded again.
+  const added = conids.filter(conid => !pingedConids.includes(conid));
+  pingedConids = conids;
+  if (added.length > 0) {
+    batchDispatchCacheTriggers(trigger => added.includes(trigger.conid));
+  }
 };
 
 const doDatabasePing = value => {

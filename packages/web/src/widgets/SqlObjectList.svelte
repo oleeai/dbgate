@@ -142,6 +142,14 @@
     return res;
   }
 
+  $: isDocumentDb = !driver?.databaseEngineTypes?.includes('sql') && driver?.databaseEngineTypes?.includes('document');
+  $: canCreateObject =
+    driver?.databaseEngineTypes?.includes('sql') || driver?.databaseEngineTypes?.includes('document');
+
+  function handleNewObject() {
+    runCommand(isDocumentDb ? 'new.collection' : 'new.table');
+  }
+
   function createRefreshDatabaseMenu() {
     return getDatabasStatusMenu({ conid, database }, driver);
   }
@@ -258,14 +266,16 @@
     >
   </WidgetsInnerContainer>
 {:else if objectList.length == 0 && $status && !isLoadingStructure && $objects}
-  <SchemaSelector
-    schemaList={_.isArray($schemaList) ? $schemaList : null}
-    objectList={flatFilteredList}
-    connection={$connection}
-    {conid}
-    {database}
-    {driver}
-  />
+  <div class="toolbar">
+    <SchemaSelector
+      schemaList={_.isArray($schemaList) ? $schemaList : null}
+      objectList={flatFilteredList}
+      connection={$connection}
+      {conid}
+      {database}
+      {driver}
+    />
+  </div>
   {#if differentFocusedDb}
     <FocusedConnectionInfoWidget {conid} {database} connection={$connection} />
   {/if}
@@ -295,51 +305,70 @@
     {/if}
   </WidgetsInnerContainer>
 {:else}
-  <div class="search-row">
-  <SearchBoxWrapper {filter} noMargin fillFlex>
-    <SearchInput
-      placeholder={_t('common.search', { defaultMessage: 'Search' })}
-      bind:value={filter}
-      bind:this={domFilter}
-      onFocusFilteredList={() => {
-        domListHandler?.focusFirst();
-      }}
-      data-testid="SqlObjectList_search"
+  <div class="toolbar">
+    <SchemaSelector
+      schemaList={_.isArray($schemaList) ? $schemaList : null}
+      objectList={flatFilteredList}
+      connection={$connection}
+      {conid}
+      {database}
+      {driver}
     />
-    <CloseSearchButton bind:filter />
-    <DropDownButton
-      icon={filter ? 'img filter-active' : 'icon filter'}
-      menu={createSearchMenu}
-      narrow={false}
-      data-testid="SqlObjectList_searchMenuDropDown"
-    />
-  </SearchBoxWrapper>
-  <div class="row-button">
-    <DropDownButton
-      icon="icon plus"
-      menu={createAddMenu}
-      title={_t('database.newTable', { defaultMessage: 'New table' })}
-      data-testid="SqlObjectList_addButton"
-    />
+
+    {#if canCreateObject}
+      <div class="new-object">
+        <button class="new-object-main" on:click={handleNewObject} data-testid="SqlObjectList_newObjectButton">
+          <FontIcon icon="icon plus" />
+          <span
+            >{isDocumentDb
+              ? _t('sqlObject.newCollectionShort', { defaultMessage: 'New collection' })
+              : _t('database.newTable', { defaultMessage: 'New table' })}</span
+          >
+        </button>
+        <span class="new-object-more">
+          <DropDownButton
+            icon="icon chevron-down"
+            menu={createAddMenu}
+            title={_t('sqlObject.newObject', { defaultMessage: 'New view, procedure, ...' })}
+            data-testid="SqlObjectList_addButton"
+          />
+        </span>
+      </div>
+    {/if}
+
+    <div class="search-row">
+      <SearchBoxWrapper {filter} noMargin fillFlex>
+        <SearchInput
+          placeholder={isDocumentDb
+            ? _t('sqlObject.searchCollections', { defaultMessage: 'Search collections...' })
+            : _t('sqlObject.searchTables', { defaultMessage: 'Search tables...' })}
+          bind:value={filter}
+          bind:this={domFilter}
+          onFocusFilteredList={() => {
+            domListHandler?.focusFirst();
+          }}
+          data-testid="SqlObjectList_search"
+        />
+        <CloseSearchButton bind:filter />
+      </SearchBoxWrapper>
+      <span class="square-button" class:active={!!filter}>
+        <DropDownButton
+          icon="icon filter-variant"
+          menu={createSearchMenu}
+          title={_t('sqlObject.searchAndSort', { defaultMessage: 'Search by, sort by' })}
+          data-testid="SqlObjectList_searchMenuDropDown"
+        />
+      </span>
+      <span class="square-button">
+        <DropDownButton
+          menu={createRefreshDatabaseMenu}
+          title={_t('sqlObjectList.refreshDatabase', { defaultMessage: 'Refresh database connection and object list' })}
+          data-testid="SqlObjectList_refreshButton"
+          icon="icon dots-horizontal"
+        />
+      </span>
+    </div>
   </div>
-  <div class="row-button">
-    <DropDownButton
-      menu={createRefreshDatabaseMenu}
-      title={_t('sqlObjectList.refreshDatabase', { defaultMessage: 'Refresh database connection and object list' })}
-      data-testid="SqlObjectList_refreshButton"
-      icon="icon dots-horizontal"
-    />
-  </div>
-  </div>
-  <SchemaSelector
-    schemaList={_.isArray($schemaList) ? $schemaList : null}
-    objectList={flatFilteredList}
-    connection={$connection}
-    {conid}
-    {database}
-    {driver}
-    negativeMarginTop
-  />
 
   {#if differentFocusedDb}
     <FocusedConnectionInfoWidget {conid} {database} connection={$connection} />
@@ -404,6 +433,7 @@
             connection: $connection,
             hideSchemaName: !!$appliedCurrentSchema,
             searchSettings: $databaseObjectAppObjectSearchSettings,
+            showMenuButton: true,
           }}
           getIsExpanded={data =>
             expandedObjects.includes(`${data.objectTypeField}||${data.schemaName}||${data.pureName}`)}
@@ -419,27 +449,104 @@
 {/if}
 
 <style>
+  .toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px 6px;
+  }
+
+  .new-object {
+    display: flex;
+    align-items: stretch;
+    height: 30px;
+    border: 1px solid var(--theme-ui-border);
+    border-radius: var(--dim-radius-md);
+    overflow: hidden;
+    transition: border-color var(--dim-transition-fast);
+  }
+  .new-object:hover {
+    border-color: var(--theme-ui-border-strong);
+  }
+  .new-object-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    border: none;
+    background: transparent;
+    color: var(--theme-generic-font);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .new-object-main:hover,
+  .new-object-more:hover {
+    background: var(--theme-ui-hover);
+  }
+  .new-object-main :global(.mdi) {
+    color: var(--theme-generic-font-grayed);
+  }
+  .new-object-more {
+    display: flex;
+    align-items: center;
+    border-left: 1px solid var(--theme-ui-border);
+  }
+  .new-object-more :global(.outer) {
+    height: 100%;
+    padding: 0 8px;
+    align-items: center;
+  }
+
   .search-row {
     display: flex;
     align-items: center;
-    gap: 2px;
-    margin: 6px 6px 2px 10px;
+    gap: 6px;
   }
   .search-row :global(.search-box-wrapper) {
-    border-radius: 7px;
-    min-height: 28px;
+    min-width: 0;
+    height: 30px;
+    border-radius: var(--dim-radius-md);
+    border: 1px solid var(--theme-ui-border);
+    background-color: transparent;
   }
-  .row-button {
+  .search-row :global(.search-box-wrapper.hasFilter) {
+    background-color: var(--theme-searchbox-background-filtered);
+  }
+  .square-button {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    font-size: 16px;
-    transition: background-color var(--dim-transition-fast);
+    width: 30px;
+    height: 30px;
+    border: 1px dashed var(--theme-ui-border-strong);
+    border-radius: var(--dim-radius-md);
+    color: var(--theme-generic-font-grayed);
+    transition:
+      background-color var(--dim-transition-fast),
+      border-color var(--dim-transition-fast);
   }
-  .row-button:hover {
+  .square-button :global(.outer) {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    align-items: center;
+    color: inherit;
+  }
+  .square-button + .square-button {
+    border-style: solid;
+    border-color: var(--theme-ui-border);
+  }
+  .square-button:hover {
     background: var(--theme-ui-hover);
+    color: var(--theme-generic-font);
+  }
+  .square-button.active {
+    border-style: solid;
+    border-color: var(--theme-ui-accent);
+    color: var(--theme-ui-accent-strong);
   }
 </style>

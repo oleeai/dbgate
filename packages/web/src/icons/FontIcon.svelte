@@ -132,6 +132,7 @@
     'icon play-stop': 'mdi mdi-stop',
     'icon pause': 'mdi mdi-pause',
     'icon filter': 'mdi mdi-filter',
+    'icon filter-variant': 'mdi mdi-filter-variant',
     'icon filter-off': 'mdi mdi-filter-off',
     'icon reload': 'mdi mdi-reload',
     'icon refresh': 'mdi mdi-refresh',

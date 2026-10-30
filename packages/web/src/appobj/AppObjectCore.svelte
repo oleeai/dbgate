@@ -6,6 +6,8 @@
   import { copyTextToClipboard } from '../utility/clipboard';
   import { showSnackbarSuccess } from '../utility/snackbar';
   import TokenizedFilteredText from '../widgets/TokenizedFilteredText.svelte';
+  import invalidateCommands from '../commands/invalidateCommands';
+  import { currentDropDownMenu } from '../stores';
 
   const dispatch = createEventDispatcher();
 
@@ -37,6 +39,18 @@
   export let disableHover = false;
   export let divProps = {};
   export let additionalIcons = null;
+  // a ⋮ button on hover that opens the context menu
+  export let showMenuButton = false;
+
+  $: hasMenuButton = showMenuButton && !!menu && !disableContextMenu;
+
+  async function handleMenuButtonClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    await invalidateCommands();
+    currentDropDownMenu.set({ left: rect.left, top: rect.bottom, items: menu, targetElement: domDiv });
+  }
 
   $: isChecked =
     checkedObjectsStore && $checkedObjectsStore.find(x => module?.extractKey(data) == module?.extractKey(x));
@@ -98,6 +112,8 @@
   class:isGrayed
   class:isChoosed
   class:disableHover
+  class:hasMenuButton
+  class:hasPinButton={hasMenuButton && !!(onPin || onUnpin)}
   draggable={true}
   on:click={handleClick}
   on:mouseup={handleMouseUp}
@@ -201,6 +217,17 @@
       </span>
     {/if}
   {/if}
+  {#if hasMenuButton}
+    <span
+      class="menu-button"
+      title="Actions"
+      on:click={handleMenuButtonClick}
+      on:dblclick|stopPropagation
+      data-testid="AppObjectCore_menuButton"
+    >
+      <FontIcon icon="icon dots-vertical" />
+    </span>
+  {/if}
 </div>
 <slot />
 
@@ -212,6 +239,8 @@
     border-radius: var(--dim-radius-sm);
     cursor: pointer;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-weight: normal;
     position: relative;
     transition: background-color 80ms ease;
@@ -228,6 +257,16 @@
 
   .isChoosed {
     background-color: var(--theme-sidebar-background-active);
+  }
+  .isChoosed::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 5px;
+    bottom: 5px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background-color: var(--theme-ui-accent);
   }
   :global(.app-object-list-focused) .isChoosed {
     background-color: var(--theme-sidebar-background-focused);
@@ -278,5 +317,40 @@
 
   .pin-active {
     color: var(--theme-sidebar-foreground-button);
+  }
+
+  .hasMenuButton {
+    padding-right: 30px;
+  }
+  .hasPinButton {
+    padding-right: 48px;
+  }
+  .hasMenuButton .pin,
+  .hasMenuButton .pin-active,
+  .hasMenuButton .unpin {
+    right: 26px;
+  }
+  .menu-button {
+    z-index: 150;
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: var(--theme-sidebar-foreground-button);
+    visibility: hidden;
+  }
+  .main:hover .menu-button,
+  .main.isChoosed .menu-button {
+    visibility: visible;
+  }
+  .menu-button:hover {
+    background-color: var(--theme-ui-hover);
+    color: var(--theme-sidebar-foreground);
   }
 </style>
