@@ -15,8 +15,16 @@ export default async function saveTabFile(editor, saveMode, folder, format, file
   const tabs = get(openedTabs);
   const tabid = editor.activator.tabid;
   const data = editor.getData();
-  const { savedFile, savedFilePath, savedFolder, savedCloudFolderId, savedCloudContentId, savedTeamFileId } =
-    tabs.find(x => x.tabid == tabid).props || {};
+  const {
+    savedFile,
+    savedFilePath,
+    savedFolder,
+    savedCloudFolderId,
+    savedCloudContentId,
+    savedTeamFileId,
+    conid,
+    database,
+  } = tabs.find(x => x.tabid == tabid).props || {};
 
   const handleSave = async () => {
     if (savedTeamFileId) {
@@ -36,7 +44,7 @@ export default async function saveTabFile(editor, saveMode, folder, format, file
       }
     } else {
       if (savedFile) {
-        await apiCall('files/save', { folder: savedFolder || folder, file: savedFile, data, format });
+        await apiCall('files/save', { folder: savedFolder || folder, file: savedFile, data, format, conid, database });
       }
       if (savedFilePath) {
         await apiCall('files/save-as', { filePath: savedFilePath, data, format });
@@ -95,6 +103,8 @@ export default async function saveTabFile(editor, saveMode, folder, format, file
       onSave,
       folid: savedCloudFolderId,
       defaultTeamFolder,
+      conid,
+      database,
       // cntid: savedCloudContentId,
     });
   }

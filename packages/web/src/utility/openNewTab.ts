@@ -18,6 +18,7 @@ function findFreeNumber(numbers: number[]) {
   // return res;
 }
 
+/** Resolves to the id of the opened tab - the new one, or the existing tab that was selected. */
 export default async function openNewTab(newTab, initialData: any = undefined, options: any = undefined) {
   const oldTabs = getOpenedTabs();
   const activeTab = getActiveTab();
@@ -75,7 +76,7 @@ export default async function openNewTab(newTab, initialData: any = undefined, o
     openedTabs.update(tabs =>
       setSelectedTabFunc(tabs, existing.tabid, !tabPreviewMode ? { tabPreviewMode: false } : {})
     );
-    return;
+    return existing.tabid;
   }
 
   // new tab will be created
@@ -156,6 +157,8 @@ export default async function openNewTab(newTab, initialData: any = undefined, o
       trackUsage({ feature: openedTab, action: 'open', tab: openedTab, engine });
     })();
   }
+
+  return tabid;
 
   // console.log('OPENING NEW TAB', newTab);
   // const tabid = uuidv1();
