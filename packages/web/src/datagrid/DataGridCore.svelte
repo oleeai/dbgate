@@ -650,7 +650,7 @@
   let previousMultiColumnFilter = undefined;
   let selectedRows = [];
 
-  function resetVerticalScroll() {
+  export function resetVerticalScroll() {
     firstVisibleRowScrollIndex = 0;
     rowPixelOffset = 0;
     verticalSmoothPending = 0;

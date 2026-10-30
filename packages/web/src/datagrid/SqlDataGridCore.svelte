@@ -46,6 +46,9 @@
   import { openImportExportTab } from '../utility/importExportTools';
   import { getIntSettingsValue } from '../settings/settingsTools';
   import OverlayDiffGrider from './OverlayDiffGrider';
+  import DataGridPagingFooter from './DataGridPagingFooter.svelte';
+  import { getLocalStorage, setLocalStorage } from '../utility/storageCache';
+  import { extensions } from '../stores';
 
   export let conid;
   export let display;
@@ -62,13 +65,22 @@
   export let macroValues;
   export let onPublishedCellsChanged;
 
+  export let setConfig = null;
+  export let isDetailView = false;
+  // the table data tab shows one page at a time, with a footer to move between pages
+  export let pagingFooter = false;
+
   let publishedCells = [];
 
   // export let onChangeGrider = undefined;
 
   export const activator = createActivator('SqlDataGridCore', false);
 
+  const PAGE_SIZES = [50, 100, 500, 1000];
+
   let loadedRows = [];
+  let domLoadingGrid;
+  let loadState = null;
 
   let grider;
 
@@ -185,10 +197,83 @@
     loadedRows = rows;
   }
 
+  // a page is cut with OFFSET, which some engines can't do
+  function supportsOffsetPaging(display) {
+    const dialect = display?.dialect;
+    return !!dialect && !dialect.offsetNotSupported && !!(dialect.rangeSelect || dialect.rowNumberOverPaging);
+  }
+
+  // filters and sort decide which rows a page holds, so when they change, paging starts again from page 1
+  function getPagingQueryKey(cfg) {
+    return JSON.stringify([
+      cfg?.filters,
+      cfg?.multiColumnFilter,
+      cfg?.searchInColumns,
+      cfg?.disabledFilterColumns,
+      cfg?.disabledMultiColumnFilter,
+      cfg?.sort,
+      cfg?.grouping,
+    ]);
+  }
+
+  function getDefaultPageLimit() {
+    const value = getLocalStorage('dataGrid_pagingLimit');
+    return PAGE_SIZES.includes(value) ? value : 100;
+  }
+
+  function resolvePaging(cfg) {
+    const stored = cfg?.paging;
+    return {
+      offset: stored && stored.queryKey == getPagingQueryKey(cfg) ? stored.offset : 0,
+      limit: stored?.limit ?? getDefaultPageLimit(),
+    };
+  }
+
+  $: paging = pagingFooter && !isDetailView && supportsOffsetPaging(display) ? resolvePaging(config) : null;
+
+  function setPaging(offset, limit) {
+    setConfig(cfg => ({ ...cfg, paging: { offset, limit, queryKey: getPagingQueryKey(cfg) } }));
+  }
+
+  function handleSetPageLimit(limit) {
+    setLocalStorage('dataGrid_pagingLimit', limit);
+    // stay on the page that holds the current first row
+    setPaging(Math.floor(paging.offset / limit) * limit, limit);
+  }
+
+  function handleLoadStateChanged(value) {
+    loadState = value;
+  }
+
+  // eg. the rows of the last page were deleted
+  $: if (paging && loadState?.allRowCount != null && paging.offset > 0 && paging.offset >= loadState.allRowCount) {
+    setPaging(Math.max(0, Math.ceil(loadState.allRowCount / paging.limit) - 1) * paging.limit, paging.limit);
+  }
+
+  $: exportFormats = hasPermission('dbops/export')
+    ? [
+        { label: 'CSV', format: $extensions?.quickExports?.find(x => x.extension == 'csv') },
+        { label: 'JSON', format: $extensions?.quickExports?.find(x => x.extension == 'json') },
+      ].filter(x => x.format)
+    : [];
+
+  // OFFSET needs a fixed row order, otherwise rows can move between pages; without a sort, use the primary key
+  function addStableOrder(select, display) {
+    const keyColumns = display.baseTable?.primaryKey?.columns;
+    if (!select?.range || select.orderBy || display.isGrouped || !keyColumns?.length) return;
+    select.orderBy = keyColumns.map(({ columnName }) => ({
+      exprType: 'column',
+      columnName,
+      source: select.from?.alias ? { alias: select.from.alias } : undefined,
+      direction: 'ASC',
+    }));
+  }
+
   async function loadDataPage(props, offset, limit) {
-    const { display, conid, database } = props;
+    const { display, conid, database, paging } = props;
 
     const select = display.getPageQuery(offset, limit);
+    if (paging) addStableOrder(select, display);
 
     const response = await apiCall('database-connections/sql-select', {
       conid,
@@ -208,13 +293,13 @@
     return !!select;
   }
 
-  async function loadRowCount(props) {
+  async function loadRowCount(props, timeout = 3000) {
     const { display, conid, database } = props;
 
     const select = display.getCountQuery();
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Row count query timed out')), 3000)
+      setTimeout(() => reject(new Error('Row count query timed out')), timeout)
     );
 
     try {
@@ -223,7 +308,7 @@
           conid,
           database,
           select,
-          commandTimeout: 3000,
+          commandTimeout: timeout,
         }),
         timeoutPromise,
       ]);
@@ -250,22 +335,64 @@
   }
 </script>
 
-<LoadingDataGridCore
-  {...$$props}
-  {loadDataPage}
-  {dataPageAvailable}
-  {loadRowCount}
-  {startFetchAll}
-  setLoadedRows={handleSetLoadedRows}
-  onPublishedCellsChanged={value => {
-    publishedCells = value;
-    if (onPublishedCellsChanged) {
-      onPublishedCellsChanged(value);
-    }
-  }}
-  frameSelection={!!macroPreview}
-  {grider}
-  {display}
-  onOpenQuery={openQuery}
-  onOpenQueryOnError={openQueryOnError}
-/>
+<div class="wrapper">
+  <div class="grid-area">
+    <LoadingDataGridCore
+      {...$$props}
+      bind:this={domLoadingGrid}
+      {loadDataPage}
+      {dataPageAvailable}
+      {loadRowCount}
+      {startFetchAll}
+      setLoadedRows={handleSetLoadedRows}
+      onPublishedCellsChanged={value => {
+        publishedCells = value;
+        if (onPublishedCellsChanged) {
+          onPublishedCellsChanged(value);
+        }
+      }}
+      frameSelection={!!macroPreview}
+      {grider}
+      {display}
+      {paging}
+      onLoadStateChanged={handleLoadStateChanged}
+      onOpenQuery={openQuery}
+      onOpenQueryOnError={openQueryOnError}
+    />
+  </div>
+  {#if paging}
+    <DataGridPagingFooter
+      offset={paging.offset}
+      limit={paging.limit}
+      pageSizes={PAGE_SIZES}
+      loadedCount={loadState?.loadedCount ?? 0}
+      isLoadedAll={!!loadState?.isLoadedAll}
+      totalCount={loadState?.allRowCount ?? null}
+      countError={loadState?.allRowCountError ?? null}
+      isCounting={!!loadState?.isRowCountLoading}
+      onSetPage={offset => setPaging(offset, paging.limit)}
+      onSetLimit={handleSetPageLimit}
+      onReloadCount={() => domLoadingGrid?.reloadRowCount(30000)}
+      {exportFormats}
+      onExport={format => quickExportHandler(format)()}
+      onExportAdvanced={hasPermission('dbops/export') ? exportGrid : null}
+    />
+  {/if}
+</div>
+
+<style>
+  .wrapper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .grid-area {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+</style>
