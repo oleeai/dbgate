@@ -80,8 +80,25 @@ export function removeVolatileMapping(conid) {
 // when the event source has to be created again
 const eventSourceListeners = new Map<string, Set<EventListener>>();
 
+// Events sent while the stream was disconnected are lost; these handlers reload what they may have
+// changed, each time the stream connects again.
+const eventSourceReconnectHandlers = new Set<() => void>();
+let eventSourceWasOpen = false;
+
+export function onEventSourceReconnect(handler: () => void) {
+  eventSourceReconnectHandlers.add(handler);
+}
+
 function createEventSource() {
   const source = new EventSource(`${resolveApi()}/stream?strmid=${strmid}`);
+  source.onopen = () => {
+    if (eventSourceWasOpen) {
+      for (const handler of eventSourceReconnectHandlers) {
+        handler();
+      }
+    }
+    eventSourceWasOpen = true;
+  };
   for (const [event, listeners] of eventSourceListeners) {
     for (const listener of listeners) {
       source.addEventListener(event, listener);
