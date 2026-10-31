@@ -452,6 +452,9 @@
   } from './selection';
   import VerticalScrollBar from './VerticalScrollBar.svelte';
   import LoadingInfo from '../elements/LoadingInfo.svelte';
+  import DataGridSkeleton from './DataGridSkeleton.svelte';
+  import ConnectionOfflineCard from '../elements/ConnectionOfflineCard.svelte';
+  import { isConnectionProblem } from '../utility/connectionProblem';
   import InlineButton from '../buttons/InlineButton.svelte';
   import FontIcon from '../icons/FontIcon.svelte';
   import DataFilterControl from './DataFilterControl.svelte';
@@ -1460,6 +1463,11 @@
 
   $: databaseStatus = useDatabaseStatus({ conid, database });
 
+  // the connection failed: a card instead of the grid, kept while "Try again" reconnects (status pending)
+  let databaseOffline = false;
+  $: databaseOffline =
+    !!conid && ($databaseStatus?.name == 'error' || (databaseOffline && $databaseStatus?.name == 'pending'));
+
   // $: console.log('visibleRealColumns', visibleRealColumns);
   // $: console.log('visibleRowCountUpperBound', visibleRowCountUpperBound);
   // $: console.log('rowHeight', rowHeight);
@@ -2405,8 +2413,22 @@
 </script>
 
 {#if !display || (!isDynamicStructure && (!columns || columns.length == 0))}
-  {#if $databaseStatus?.name == 'pending' || $databaseStatus?.name == 'checkStructure' || $databaseStatus?.name == 'loadStructure'}
-    <LoadingInfo wrapper message={_t('datagrid.structure.waiting', { defaultMessage: 'Waiting for structure' })} />
+  {#if databaseOffline}
+    <div class="offline-card">
+      <ConnectionOfflineCard
+        {conid}
+        {database}
+        message={$databaseStatus?.message}
+        busy={$databaseStatus?.name == 'pending'}
+      />
+    </div>
+  {:else if $databaseStatus?.name == 'pending' || $databaseStatus?.name == 'checkStructure' || $databaseStatus?.name == 'loadStructure'}
+    <DataGridSkeleton
+      withHeader
+      message={$databaseStatus?.name == 'pending'
+        ? _t('datagrid.connecting', { defaultMessage: 'Connecting…' })
+        : _t('datagrid.structure.waiting', { defaultMessage: 'Waiting for structure' })}
+    />
   {:else}
     <ErrorInfo
       alignTop
@@ -2415,6 +2437,15 @@
       })}
     />
   {/if}
+{:else if errorMessage && conid && (databaseOffline || isConnectionProblem(errorMessage))}
+  <div class="offline-card">
+    <ConnectionOfflineCard
+      {conid}
+      {database}
+      message={(databaseOffline && $databaseStatus?.message) || errorMessage}
+      onRetry={reconnect}
+    />
+  </div>
 {:else if errorMessage}
   <div>
     <ErrorInfo message={errorMessage} alignTop />
@@ -2797,7 +2828,10 @@
     {/if}
 
     {#if isLoading}
-      <LoadingInfo wrapper message="Loading data" />
+      <DataGridSkeleton
+        append={grider?.rowCount > 0}
+        message={_t('datagrid.loadingData', { defaultMessage: 'Loading data' })}
+      />
     {/if}
 
     {#if isFetchingAll}
@@ -2845,6 +2879,11 @@
 {/if}
 
 <style>
+  .offline-card {
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px 16px;
+  }
   .container {
     position: absolute;
     left: 0;

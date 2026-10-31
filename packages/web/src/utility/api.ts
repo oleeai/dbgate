@@ -172,7 +172,9 @@ async function processApiResponse(route, args, resp) {
         message: resp.apiErrorMessage,
         licenseLimits: resp.apiErrorLimitedLicenseLimits,
       });
-    } else {
+    } else if (!String(resp.apiErrorMessage).includes('DBGM-00309')) {
+      // DBGM-00309: the database connection closed (eg. it could not connect) - the offline card in the
+      // sidebar and the data grid already says so, a raw error toast for each pending request is noise
       showSnackbarError('API error:' + resp?.apiErrorMessage);
     }
     return {
