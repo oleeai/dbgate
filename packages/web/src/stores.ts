@@ -311,7 +311,8 @@ export const visibleTitleBar = derived(useSettings(), $settings => {
   return !$settings['app.fullscreen'] && !nativeMenuOnStartup;
 });
 export const alignDataGridNumbersToRight = derived(useSettings(), $settings => {
-  return !!$settings?.['dataGrid.alignNumbersRight'];
+  // numbers line up on the right by default; the setting can still turn it off
+  return $settings?.['dataGrid.alignNumbersRight'] ?? true;
 });
 
 export const visibleHamburgerMenuWidget = derived(useSettings(), $settings => {

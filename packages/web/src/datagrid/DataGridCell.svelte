@@ -86,6 +86,7 @@
   class:isMissing
   class:isAutofillSelected
   class:isFocusedColumn
+  class:isCurrentCell
   class:hasOverlayValue
   class:isMissingOverlayField
   class:isStickyLeft={col.stickyLeft != null}
@@ -183,8 +184,9 @@
     font-weight: normal;
     border-top: var(--theme-datagrid-border-horizontal);
     border-bottom: var(--theme-datagrid-border-horizontal);
-    border-left: var(--theme-datagrid-border-vertical);
-    border-right: var(--theme-datagrid-border-vertical);
+    /* row separators carry the structure; column lines stay faint */
+    border-left: 1px solid color-mix(in srgb, var(--theme-ui-border-subtle) 55%, transparent);
+    border-right: 1px solid color-mix(in srgb, var(--theme-ui-border-subtle) 55%, transparent);
     padding: 2px 8px;
     white-space: nowrap;
     position: relative;
@@ -196,6 +198,10 @@
   }
   :global(tr:hover) > td :global(.showFormButtonMarker) {
     opacity: 1;
+  }
+  /* hover tints over whatever state colour the cell already has */
+  :global(tr:hover) > td {
+    box-shadow: inset 0 0 0 100vmax var(--theme-ui-hover);
   }
   td.isStickyLeft {
     background: var(--theme-datagrid-headercell-background);
@@ -231,10 +237,11 @@
   }
   :global(.data-grid-focused) td.isSelected {
     background: var(--theme-datagrid-focused-cell-background);
-    border-top: var(--theme-datagrid-focused-cell-border-horizontal);
-    border-bottom: var(--theme-datagrid-focused-cell-border-horizontal);
-    border-left: var(--theme-datagrid-focused-cell-border-vertical);
-    border-right: var(--theme-datagrid-focused-cell-border-vertical);
+  }
+  /* the cell the keyboard acts on */
+  :global(.data-grid-focused) td.isSelected.isCurrentCell:not(.isAutofillSelected) {
+    outline: 2px solid var(--theme-ui-accent);
+    outline-offset: -2px;
   }
   td.isDeleted {
     background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAEElEQVQImWNgIAX8x4KJBAD+agT8INXz9wAAAABJRU5ErkJggg==') !important;

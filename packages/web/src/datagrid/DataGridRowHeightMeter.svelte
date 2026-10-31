@@ -1,5 +1,7 @@
 <script lang="ts" context="module">
   export const dataGridRowHeight = writable(0);
+  // a little more air around each row's text than the measured content needs
+  const ROW_BREATHING_ROOM = 3;
 </script>
 
 <script lang="ts">
@@ -19,7 +21,7 @@
           use:resizeObserver={true}
           on:resize={e => {
             // @ts-ignore
-            $dataGridRowHeight = e.detail.height + 1;
+            $dataGridRowHeight = e.detail.height + 1 + ROW_BREATHING_ROOM;
           }}
         >
           title
