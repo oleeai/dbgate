@@ -151,6 +151,7 @@
     'icon query-design': 'mdi mdi-vector-polyline-edit',
     'icon form': 'mdi mdi-form-select',
     'icon history': 'mdi mdi-history',
+    'icon action': 'mdi mdi-lightning-bolt-outline',
     'icon structure': 'mdi mdi-tools',
     'icon square': 'mdi mdi-square',
     'icon data-deploy': 'mdi mdi-database-settings',

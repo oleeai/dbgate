@@ -83,6 +83,7 @@ module.exports = ({ editMenu, isMac }, currentTranslations = null) => [
   {
     label: _t('menu.tools', { defaultMessage: 'Tools', currentTranslations }),
     submenu: [
+      { command: 'commandPalette.search', hideDisabled: true },
       { command: 'database.search', hideDisabled: true },
       { command: 'commandPalette.show', hideDisabled: true },
       { command: 'database.switch', hideDisabled: true },
