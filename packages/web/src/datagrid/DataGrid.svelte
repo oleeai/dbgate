@@ -86,6 +86,7 @@
   import { getLocalStorage, setLocalStorage } from '../utility/storageCache';
   import { _t } from '../translations';
   import { isProApp } from '../utility/proTools';
+  import FontIcon from '../icons/FontIcon.svelte';
   import CellDataWidget from '../widgets/CellDataWidget.svelte';
   import { useSettings } from '../utility/metadataLoaders';
 
@@ -234,6 +235,8 @@
         skip={isFormView}
         data-testid="DataGrid_itemColumns"
         altsidebar
+        onFold={() => collapsedLeftColumnStore.set(true)}
+        foldTitle={_t('dataGrid.hidePanel', { defaultMessage: 'Hide panel' })}
       >
         <ColumnManager {...$$props} {managerSize} {isJsonView} {isDynamicStructure} bind:this={domColumnManager} />
       </WidgetColumnBarItem>
@@ -283,74 +286,88 @@
     </WidgetColumnBar>
   </div>
   <svelte:fragment slot="2">
-    <VerticalSplitter initialValue="70%" isSplitter={!!$selectedMacro && !isFormView && showMacros}>
-      <svelte:fragment slot="1">
-        <HorizontalSplitter
-          initialSizeRight={getInitialCellViewWidth()}
-          onChangeSize={(leftSize, rightSize) => {
-            cellViewWidth = rightSize;
-          }}
-          isSplitter={cellDataViewVisible && !isFormView}
-        >
-          <svelte:fragment slot="1">
-            {#if isFormView}
-              <svelte:component this={formViewComponent} {...$$props} />
-            {:else if isJsonView}
-              <svelte:component this={jsonViewComponent} {...$$props} {setLoadedRows} />
-            {:else}
-              <svelte:component
-                this={gridCoreComponent}
-                {...$$props}
-                {collapsedLeftColumnStore}
-                formViewAvailable={!!formViewComponent}
-                macroValues={extractMacroValuesForMacro($macroValues, $selectedMacro)}
-                macroPreview={$selectedMacro}
-                {setLoadedRows}
-                onPublishedCellsChanged={value => {
-                  publishedCells = value;
-                  if (onPublishedCellsChanged) {
-                    onPublishedCellsChanged(value);
-                  }
-                  if (
-                    value[0]?.isSelectedFullRow &&
-                    !isFormView &&
-                    !rowSidePanelOpen &&
-                    !$settings?.['dataGrid.disableCellDataViewAutoOpen']
-                  ) {
-                    showCellDataView('row_header');
-                  }
+    {#if !hideGridLeftColumn && $collapsedLeftColumnStore}
+      <button
+        type="button"
+        class="fold-rail"
+        title={_t('dataGrid.showPanel', { defaultMessage: 'Show panel' })}
+        on:click={() => collapsedLeftColumnStore.set(false)}
+        data-testid="DataGrid_showLeftPanel"
+      >
+        <FontIcon icon="icon dock-left" />
+        <span class="fold-rail-label">{_t('dataGrid.columns', { defaultMessage: 'Columns' })}</span>
+      </button>
+    {/if}
+    <div class="main">
+      <VerticalSplitter initialValue="70%" isSplitter={!!$selectedMacro && !isFormView && showMacros}>
+        <svelte:fragment slot="1">
+          <HorizontalSplitter
+            initialSizeRight={getInitialCellViewWidth()}
+            onChangeSize={(leftSize, rightSize) => {
+              cellViewWidth = rightSize;
+            }}
+            isSplitter={cellDataViewVisible && !isFormView}
+          >
+            <svelte:fragment slot="1">
+              {#if isFormView}
+                <svelte:component this={formViewComponent} {...$$props} />
+              {:else if isJsonView}
+                <svelte:component this={jsonViewComponent} {...$$props} {setLoadedRows} />
+              {:else}
+                <svelte:component
+                  this={gridCoreComponent}
+                  {...$$props}
+                  {collapsedLeftColumnStore}
+                  formViewAvailable={!!formViewComponent}
+                  macroValues={extractMacroValuesForMacro($macroValues, $selectedMacro)}
+                  macroPreview={$selectedMacro}
+                  {setLoadedRows}
+                  onPublishedCellsChanged={value => {
+                    publishedCells = value;
+                    if (onPublishedCellsChanged) {
+                      onPublishedCellsChanged(value);
+                    }
+                    if (
+                      value[0]?.isSelectedFullRow &&
+                      !isFormView &&
+                      !rowSidePanelOpen &&
+                      !$settings?.['dataGrid.disableCellDataViewAutoOpen']
+                    ) {
+                      showCellDataView('row_header');
+                    }
+                  }}
+                  onRowSidePanelChanged={isOpen => {
+                    // the row sheet shows the whole row, the cell view next to it would only repeat it
+                    rowSidePanelOpen = isOpen;
+                    if (isOpen) cellDataViewVisible = false;
+                  }}
+                  onChangeSelectedColumns={cols => {
+                    if (domColumnManager) domColumnManager.setSelectedColumns(cols);
+                  }}
+                />
+              {/if}
+            </svelte:fragment>
+            <svelte:fragment slot="2">
+              <CellDataWidget
+                onClose={() => {
+                  cellDataViewVisible = false;
                 }}
-                onRowSidePanelChanged={isOpen => {
-                  // the row sheet shows the whole row, the cell view next to it would only repeat it
-                  rowSidePanelOpen = isOpen;
-                  if (isOpen) cellDataViewVisible = false;
-                }}
-                onChangeSelectedColumns={cols => {
-                  if (domColumnManager) domColumnManager.setSelectedColumns(cols);
-                }}
+                selection={publishedCells.map(cell => ({
+                  ...cell,
+                  value: cell.value?.$bigint ?? cell.value?.$decimal ?? cell.value,
+                }))}
               />
-            {/if}
-          </svelte:fragment>
-          <svelte:fragment slot="2">
-            <CellDataWidget
-              onClose={() => {
-                cellDataViewVisible = false;
-              }}
-              selection={publishedCells.map(cell => ({
-                ...cell,
-                value: cell.value?.$bigint ?? cell.value?.$decimal ?? cell.value,
-              }))}
-            />
-          </svelte:fragment>
-        </HorizontalSplitter>
-      </svelte:fragment>
+            </svelte:fragment>
+          </HorizontalSplitter>
+        </svelte:fragment>
 
-      <svelte:fragment slot="2">
-        {#if $selectedMacro}
-          <MacroDetail onExecute={handleExecuteMacro} />
-        {/if}
-      </svelte:fragment>
-    </VerticalSplitter>
+        <svelte:fragment slot="2">
+          {#if $selectedMacro}
+            <MacroDetail onExecute={handleExecuteMacro} />
+          {/if}
+        </svelte:fragment>
+      </VerticalSplitter>
+    </div>
   </svelte:fragment>
 </HorizontalSplitter>
 
@@ -360,5 +377,46 @@
     flex: 1;
     background-color: var(--theme-altsidebar-background);
     border-right: var(--theme-altsidebar-border);
+  }
+
+  .main {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .fold-rail {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 26px;
+    padding: 10px 0;
+    border: none;
+    border-right: var(--theme-altsidebar-border);
+    background-color: var(--theme-altsidebar-background);
+    color: var(--theme-generic-font-grayed);
+    font: inherit;
+    cursor: pointer;
+    transition:
+      background-color 80ms ease,
+      color 80ms ease;
+  }
+  .fold-rail:hover {
+    background-color: var(--theme-altsidebar-background-hover);
+    color: var(--theme-generic-font);
+  }
+  .fold-rail:focus-visible {
+    outline: none;
+    box-shadow: inset var(--theme-input-focus-ring);
+  }
+
+  .fold-rail-label {
+    writing-mode: vertical-rl;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
   }
 </style>

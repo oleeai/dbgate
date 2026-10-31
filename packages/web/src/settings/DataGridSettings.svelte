@@ -56,7 +56,7 @@
   <FormCheckboxField
     name="dataGrid.alignNumbersRight"
     label={_t('settings.dataGrid.alignNumbersRight', { defaultMessage: 'Align numbers to right' })}
-    defaultValue={false}
+    defaultValue={true}
   />
 
   <FormTextField

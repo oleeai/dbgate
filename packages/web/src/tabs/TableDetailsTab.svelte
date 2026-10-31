@@ -7,6 +7,7 @@
   import { findEngineDriver } from 'dbgate-tools';
   import ToolStripContainer from '../buttons/ToolStripContainer.svelte';
   import ToolStripButton from '../buttons/ToolStripButton.svelte';
+  import TableViewSwitch from '../buttons/TableViewSwitch.svelte';
   import FontIcon from '../icons/FontIcon.svelte';
   import SqlHighlighter from '../elements/SqlHighlighter.svelte';
   import TableDetailsSection from '../tabledetails/TableDetailsSection.svelte';
@@ -23,6 +24,7 @@
   export let database;
   export let schemaName;
   export let pureName;
+  export let tabPreviewMode = false;
 
   const connection = useConnectionInfo({ conid });
   const dbinfo = useDatabaseInfo({ conid, database });
@@ -114,16 +116,6 @@
         pureName: func.pureName,
         objectTypeField: 'functions',
       },
-    });
-  }
-
-  function openTableTab(tabComponent, icon) {
-    openNewTab({
-      title: pureName,
-      icon,
-      tabComponent,
-      tabPreviewMode: true,
-      props: { conid, database, schemaName, pureName, objectTypeField: 'tables' },
     });
   }
 </script>
@@ -377,27 +369,24 @@
   </div>
 
   <svelte:fragment slot="toolstrip">
+    <TableViewSwitch
+      active="details"
+      {conid}
+      {database}
+      {schemaName}
+      {pureName}
+      objectTypeField="tables"
+      {tabPreviewMode}
+      testIds={{ data: 'TableDetailsTab_openData', structure: 'TableDetailsTab_openStructure' }}
+    />
+
+    <div class="toolstrip-spacer" />
+
     <ToolStripButton
       icon="icon reload"
       title={_t('tableDetails.refreshHint', { defaultMessage: 'Read the details again' })}
       on:click={refresh}
       data-testid="TableDetailsTab_refresh">{_t('common.refresh', { defaultMessage: 'Refresh' })}</ToolStripButton
-    >
-
-    <div class="toolstrip-divider" />
-
-    <ToolStripButton
-      icon="icon table"
-      iconAfter="icon arrow-link"
-      on:click={() => openTableTab('TableDataTab', 'img table')}
-      data-testid="TableDetailsTab_openData">{_t('common.data', { defaultMessage: 'Data' })}</ToolStripButton
-    >
-    <ToolStripButton
-      icon="icon table-cog"
-      iconAfter="icon arrow-link"
-      on:click={() => openTableTab('TableStructureTab', 'img table-structure')}
-      data-testid="TableDetailsTab_openStructure"
-      >{_t('datagrid.structure', { defaultMessage: 'Structure' })}</ToolStripButton
     >
   </svelte:fragment>
 </ToolStripContainer>

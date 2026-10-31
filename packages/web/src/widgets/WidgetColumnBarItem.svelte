@@ -30,6 +30,8 @@
 
   // export let storageName = null;
   export let onClose = null;
+  export let onFold = null;
+  export let foldTitle = null;
   export let minimalHeight = 50;
   export let name;
 
@@ -87,6 +89,8 @@
       data-testid={$$props['data-testid']}
       {altsidebar}
       {onClose}
+      {onFold}
+      {foldTitle}
       collapsed={computed.collapsed}>{title}</WidgetTitle
     >
   {/if}

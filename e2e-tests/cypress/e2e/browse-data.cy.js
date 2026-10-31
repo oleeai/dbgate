@@ -90,6 +90,8 @@ describe('Data browser data', () => {
     cy.testid('WidgetIconPanel_database').click();
     cy.testid('DataGrid_itemReferences').click();
 
+    // the per-column filter row is hidden until opened
+    cy.testid('DataGridCore_button_toggleFilterRow').first().click();
     cy.testid('DataFilterControl_input_Title').type('Rock{enter}');
     cy.contains('Rows: 7');
     cy.testid('DataFilterControl_input_AlbumId').type('>10xxx{enter}');
@@ -252,6 +254,8 @@ describe('Data browser data', () => {
     cy.contains('Mongo-connection').click();
     cy.contains('MgChinook').click();
     cy.contains('Customer').click();
+    // the per-column filter row is hidden until opened
+    cy.testid('DataGridCore_button_toggleFilterRow').first().click();
     cy.testid('DataFilterControl_input_CustomerId').type('<=10{enter}');
     // test filter
     cy.contains('Rows: 10');
@@ -394,6 +398,8 @@ describe('Data browser data', () => {
     cy.testid('ColumnManagerRow_checkbox_countries.0').click();
     cy.testid('ColumnManagerRow_checkbox_countries.1').click();
     cy.testid('ColumnManagerRow_checkbox__id').click();
+    // the per-column filter row is hidden until opened
+    cy.testid('DataGridCore_button_toggleFilterRow').first().click();
     cy.testid('DataFilterControl_input_countries.1').type('EXISTS{enter}');
     cy.contains('Austria').click();
     cy.testid('CollectionDataTab_toggleCellDataView').click();
@@ -469,6 +475,8 @@ describe('Data browser data', () => {
     cy.contains('MySql-connection').click();
     cy.contains('MyChinook').click();
     cy.contains('Album').click();
+    // the per-column filter row is hidden until opened
+    cy.testid('DataGridCore_button_toggleFilterRow').first().click();
     cy.testid('DataFilterControl_input_ArtistId').type('22{enter}');
     // cy.contains('Presence').rightclick();
     // cy.contains('Coda').rightclick();
@@ -552,6 +560,8 @@ describe('Data browser data', () => {
     cy.testid('ColumnManagerRow_expand_ArtistId').click();
     cy.testid('ColumnManagerRow_checkbox_ArtistId.Name').click();
     cy.testid('ColumnManagerRow_checkbox_ArtistId').click();
+    // the per-column filter row is hidden until opened
+    cy.testid('DataGridCore_button_toggleFilterRow').first().click();
     cy.testid('DataFilterControl_input_ArtistId.Name').type('mich{enter}');
     cy.themeshot('data-browser-filter-by-expanded');
   });
@@ -567,6 +577,8 @@ describe('Data browser data', () => {
     cy.themeshot('dynamodb-json-view');
 
     cy.contains('Customer').click();
+    // the per-column filter row is hidden until opened
+    cy.testid('DataGridCore_button_toggleFilterRow').first().click();
     cy.testid('DataFilterControl_input_CustomerId').type('<=10{enter}');
     cy.contains('Rows: 10');
     cy.wait(1000);

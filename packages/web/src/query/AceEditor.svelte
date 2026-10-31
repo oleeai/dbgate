@@ -494,6 +494,8 @@
     editor.container.addEventListener('contextmenu', handleContextMenu);
     editor.keyBinding.addKeyboardHandler(handleKeyDown);
     editor.setKeyboardHandler(keyBindingMode == 'default' ? null : 'ace/keyboard/' + keyBindingMode);
+    // Ctrl+K opens the quick search, also from the editor; Ace's Ctrl+K (find next, Windows / Linux) stays in its search box (Enter)
+    editor.commands.bindKey({ win: 'Ctrl-K', mac: null }, null);
     editor.renderer.setScrollMargin(2, 0);
     changedQueryParts();
 

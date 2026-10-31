@@ -113,6 +113,7 @@
 
     'icon columns': 'mdi mdi-view-column',
     'icon columns-outline': 'mdi mdi-view-column-outline',
+    'icon dock-left': 'mdi mdi-dock-left',
 
     'icon locked-database-mode': 'mdi mdi-database-lock',
     'icon unlocked-database-mode': 'mdi mdi-database-eye',
@@ -150,6 +151,7 @@
     'icon query-design': 'mdi mdi-vector-polyline-edit',
     'icon form': 'mdi mdi-form-select',
     'icon history': 'mdi mdi-history',
+    'icon action': 'mdi mdi-lightning-bolt-outline',
     'icon structure': 'mdi mdi-tools',
     'icon square': 'mdi mdi-square',
     'icon data-deploy': 'mdi mdi-database-settings',

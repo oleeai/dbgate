@@ -57,6 +57,9 @@
     right: 0px;
     top: 1px;
   }
+  :global(tr:hover) > td {
+    box-shadow: inset 0 0 0 100vmax var(--theme-ui-hover);
+  }
   :global(.data-grid-focused) td.selected {
     background-color: var(--theme-datagrid-focused-cell-background);
   }

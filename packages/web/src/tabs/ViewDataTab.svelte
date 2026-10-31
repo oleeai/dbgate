@@ -55,8 +55,7 @@
   import { getLocalStorage, setLocalStorage } from '../utility/storageCache';
   import useGridConfig from '../utility/useGridConfig';
   import StatusBarTabItem from '../widgets/StatusBarTabItem.svelte';
-  import ToolStripButton from '../buttons/ToolStripButton.svelte';
-  import openNewTab from '../utility/openNewTab';
+  import TableViewSwitch from '../buttons/TableViewSwitch.svelte';
   import createUndoReducer from '../utility/createUndoReducer';
   import invalidateCommands from '../commands/invalidateCommands';
   import ConfirmSqlModal from '../modals/ConfirmSqlModal.svelte';
@@ -217,47 +216,15 @@
       onResultInfoLoaded={handleResultInfoLoaded}
     />
     <svelte:fragment slot="toolstrip">
-      <ToolStripButton
-        icon="icon structure"
-        iconAfter="icon arrow-link"
-        on:click={() => {
-          openNewTab({
-            title: pureName,
-            icon: 'img table-structure',
-            tabComponent: 'TableStructureTab',
-            tabPreviewMode: true,
-            props: {
-              schemaName,
-              pureName,
-              conid,
-              database,
-              objectTypeField,
-              defaultActionId: 'openStructure',
-            },
-          });
-        }}>Structure</ToolStripButton
-      >
-
-      <ToolStripButton
-        icon="img sql-file"
-        iconAfter="icon arrow-link"
-        on:click={() => {
-          openNewTab({
-            title: pureName,
-            icon: 'img sql-file',
-            tabComponent: 'SqlObjectTab',
-            tabPreviewMode: true,
-            props: {
-              schemaName,
-              pureName,
-              conid,
-              database,
-              objectTypeField,
-              defaultActionId: 'showSql',
-            },
-          });
-        }}>SQL</ToolStripButton
-      >
+      <TableViewSwitch
+        active="data"
+        {conid}
+        {database}
+        {schemaName}
+        {pureName}
+        objectTypeField={objectTypeField || 'views'}
+      />
+      <div class="toolstrip-spacer" />
 
       <ToolStripCommandButton command="dataGrid.refresh" />
       <ToolStripCommandButton
