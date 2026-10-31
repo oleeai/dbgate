@@ -31,8 +31,12 @@
   export let filter = undefined;
   // grid header: neutral key and link icons in place of the column type icon
   export let keyIcons = false;
+  // column list: one fixed key slot, name cut with an ellipsis, type on the right
+  export let listLayout = false;
 
   $: icon = iconOverride || (keyIcons ? null : getColumnIcon($$props, forceIcon));
+  $: showPrimaryKeyIcon = keyIcons && isPrimaryKey;
+  $: showForeignKeyIcon = keyIcons && foreignKey && !(listLayout && isPrimaryKey);
   $: canOpenReference = !!(foreignKey && conid && database);
 
   function openReferencedTable() {
@@ -59,42 +63,44 @@
   }
 </script>
 
-<span class="label" class:notNull>
-  {#if keyIcons && isPrimaryKey}
-    <span
-      class="key-icon"
-      title={_t('columnLabel.primaryKey', { defaultMessage: 'Primary key' })}
-      data-testid="ColumnLabel_primaryKeyIcon"
-    >
-      <FontIcon icon="icon primary-key" />
-    </span>
-  {/if}
-  {#if keyIcons && foreignKey}
-    <span
-      class="key-icon"
-      class:clickable={canOpenReference}
-      title={getReferenceTitle(foreignKey, canOpenReference)}
-      role="button"
-      tabindex="-1"
-      aria-disabled={!canOpenReference}
-      data-testid="ColumnLabel_foreignKeyIcon"
-      on:mousedown={e => {
-        // keep the grid from selecting the column
-        if (canOpenReference) e.stopPropagation();
-      }}
-      on:click={e => {
-        if (!canOpenReference) return;
-        e.stopPropagation();
-        openReferencedTable();
-      }}
-    >
-      <FontIcon icon="icon foreign-key" />
-    </span>
-  {/if}
+<span class="label" class:notNull class:listLayout>
+  <span class="keys">
+    {#if showPrimaryKeyIcon}
+      <span
+        class="key-icon"
+        title={_t('columnLabel.primaryKey', { defaultMessage: 'Primary key' })}
+        data-testid="ColumnLabel_primaryKeyIcon"
+      >
+        <FontIcon icon="icon primary-key" />
+      </span>
+    {/if}
+    {#if showForeignKeyIcon}
+      <span
+        class="key-icon"
+        class:clickable={canOpenReference}
+        title={getReferenceTitle(foreignKey, canOpenReference)}
+        role="button"
+        tabindex="-1"
+        aria-disabled={!canOpenReference}
+        data-testid="ColumnLabel_foreignKeyIcon"
+        on:mousedown={e => {
+          // keep the grid from selecting the column
+          if (canOpenReference) e.stopPropagation();
+        }}
+        on:click={e => {
+          if (!canOpenReference) return;
+          e.stopPropagation();
+          openReferencedTable();
+        }}
+      >
+        <FontIcon icon="icon foreign-key" />
+      </span>
+    {/if}
+  </span>
   {#if icon}
     <FontIcon {icon} />
   {/if}
-  <TokenizedFilteredText text={headerText || columnName} {filter} />
+  <span class="name"><TokenizedFilteredText text={headerText || columnName} {filter} /></span>
   {#if extInfo}
     <span class="extinfo">{extInfo}</span>
   {/if}
@@ -149,5 +155,55 @@
 
   .key-icon.clickable:hover {
     color: var(--theme-link-foreground);
+  }
+
+  .keys {
+    display: contents;
+  }
+
+  .label.listLayout {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .label.listLayout.notNull {
+    font-weight: 600;
+  }
+
+  .listLayout .keys {
+    display: inline-flex;
+    flex: none;
+    justify-content: center;
+    width: 14px;
+    margin-right: 6px;
+  }
+
+  .listLayout .key-icon {
+    margin-right: 0;
+    font-size: 13px;
+  }
+
+  .listLayout .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .listLayout .extinfo {
+    flex: 0 3 auto;
+    min-width: 0;
+    max-width: 60%;
+    margin-left: auto;
+    padding-left: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11.5px;
+    color: var(--theme-generic-font-grayed);
+  }
+
+  .listLayout .extinfo :global(.mdi) {
+    font-size: 11px;
   }
 </style>

@@ -18,7 +18,6 @@
   import ColumnEditorModal from '../tableeditor/ColumnEditorModal.svelte';
   import { tick } from 'svelte';
   import { _t } from '../translations';
-  import FontIcon from '../icons/FontIcon.svelte';
 
   export let managerSize;
   export let display: GridDisplay;
@@ -40,6 +39,16 @@
   $: currentFilter = display?.config?.searchInColumns;
 
   $: items = display?.getColumns(currentFilter)?.filter(column => filterName(currentFilter, column.columnName)) || [];
+  $: shownCount = items.filter(x => x.isChecked).length;
+  $: allShown = isJsonView || shownCount == items.length;
+  $: summaryText = currentFilter
+    ? _t('columnManager.countMatching', { defaultMessage: '{count} matching', values: { count: items.length } })
+    : allShown
+      ? _t('columnManager.countAll', { defaultMessage: '{count} columns', values: { count: items.length } })
+      : _t('columnManager.countShown', {
+          defaultMessage: '{shown} of {count} shown',
+          values: { shown: shownCount, count: items.length },
+        });
 
   function selectColumnIndexCore(index, e) {
     const uniqueName = items[index].uniqueName;
@@ -208,9 +217,30 @@
   {#if allowChangeChangeSetStructure && !isDynamicStructure}
     <InlineButton on:click={handleAddColumn}>Add</InlineButton>
   {/if}
-  <InlineButton on:click={() => display.hideAllColumns()}><FontIcon icon="icon hide" /></InlineButton>
-  <InlineButton on:click={() => display.showAllColumns()}><FontIcon icon="icon show" /></InlineButton>
 </SearchBoxWrapper>
+<div class="summary">
+  <span class="summary-text" data-testid="ColumnManager_summary">{summaryText}</span>
+  <span class="summary-actions">
+    <button
+      type="button"
+      class="text-button"
+      disabled={!isJsonView && shownCount == items.length}
+      on:click={() => display.showAllColumns()}
+      data-testid="ColumnManager_showAll"
+    >
+      {_t('columnManager.showAll', { defaultMessage: 'Show all' })}
+    </button>
+    <button
+      type="button"
+      class="text-button"
+      disabled={!isJsonView && shownCount == 0}
+      on:click={() => display.hideAllColumns()}
+      data-testid="ColumnManager_hideAll"
+    >
+      {_t('columnManager.hideAll', { defaultMessage: 'Hide all' })}
+    </button>
+  </span>
+</div>
 <ManagerInnerContainer width={managerSize}>
   <input
     type="text"
@@ -306,5 +336,48 @@
 
   .selectwrap {
     border-bottom: var(--theme-table-border);
+  }
+
+  .summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 22px;
+    padding: 0 8px 4px 14px;
+    font-size: 11.5px;
+    color: var(--theme-generic-font-grayed);
+    white-space: nowrap;
+  }
+
+  .summary-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-actions {
+    display: flex;
+    flex: none;
+    gap: 2px;
+  }
+
+  .text-button {
+    appearance: none;
+    padding: 2px 6px;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--theme-ui-accent-strong);
+    font: inherit;
+    cursor: pointer;
+    transition: background-color 80ms ease;
+  }
+  .text-button:hover:not(:disabled) {
+    background: var(--theme-ui-hover);
+  }
+  .text-button:disabled {
+    color: var(--theme-ui-text-tertiary);
+    cursor: default;
   }
 </style>
