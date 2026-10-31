@@ -5,6 +5,8 @@
   import { joinDateTime, splitDateTime } from './rowSidePanelTools';
 
   export let field;
+  // the grid's current cell is in this column
+  export let current = false;
   export let lookupOpen = false;
   export let onChange;
   export let onOpenLookup = null;
@@ -53,6 +55,8 @@
   class:pending={field.isPending && !field.isDirty}
   class:invalid={!!field.error}
   class:readonly={!field.editable}
+  class:current
+  data-unique-name={field.uniqueName}
   data-testid={`RowSidePanel_field_${field.columnName}`}
 >
   <div class="label-row">
@@ -265,6 +269,10 @@
     border-radius: 0 2px 2px 0;
     background: transparent;
     transition: background-color var(--dim-transition-fast);
+  }
+  .field.current {
+    background: color-mix(in srgb, var(--theme-ui-accent-soft) 50%, transparent);
+    transition: background-color 160ms var(--dim-ease-out);
   }
   .field.dirty::before {
     background: var(--theme-ui-accent);

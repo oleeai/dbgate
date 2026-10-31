@@ -1,8 +1,8 @@
 <script>
+  import { getContext } from 'svelte';
   import FontIcon from '../icons/FontIcon.svelte';
   import ColumnHeaderMenu from './ColumnHeaderMenu.svelte';
   import ColumnQuickStats from './ColumnQuickStats.svelte';
-  import ColumnSidePanel from '../tableeditor/ColumnSidePanel.svelte';
   import { confirmDeleteColumn } from '../tableeditor/columnAlterTools';
   import splitterDrag from '../utility/splitterDrag';
   import _ from 'lodash';
@@ -42,9 +42,13 @@
   let domHeader;
   let showQuickStats = false;
 
+  // a table data tab shows column details, stats and the column editor in its inspector
+  const inspector = getContext('tableInspector');
+
   // Expanded foreign-key columns belong to another table, so table actions only apply to own columns
   $: isOwnColumn = column?.uniquePath?.length == 1 && !!column?.columnName;
-  $: canEditStructure = allowStructureEdit && isOwnColumn;
+  $: useInspector = isOwnColumn && !!inspector?.matchesTable(column);
+  $: canEditStructure = allowStructureEdit && useInspector;
 
   const openReferencedTable = () => {
     openDatabaseObjectDetail('TableDataTab', null, {
@@ -80,15 +84,12 @@
   };
 
   function openColumnPanel(columnName) {
-    showModal(ColumnSidePanel, {
-      conid,
-      database,
-      schemaName: column.schemaName,
-      pureName: column.pureName,
-      columnName,
-      driver,
-      onSaved: onReload,
-    });
+    inspector.editColumn(columnName);
+  }
+
+  function openQuickStats() {
+    if (useInspector) inspector.showColumn(column.columnName);
+    else showQuickStats = true;
   }
 
   function handleDeleteColumn() {
@@ -148,7 +149,7 @@
           },
           allowQuickStats &&
             isOwnColumn && {
-              onClick: () => (showQuickStats = true),
+              onClick: openQuickStats,
               text: _t('columnMenu.quickStats', { defaultMessage: 'Quick stats' }),
               icon: 'mdi mdi-chart-box-outline',
               testid: 'ColumnHeaderControl_quickStats',

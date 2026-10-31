@@ -1,6 +1,6 @@
 <script lang="ts">
   import _ from 'lodash';
-  import { onMount, tick } from 'svelte';
+  import { tick } from 'svelte';
   import {
     editorAddColumn,
     editorAddConstraint,
@@ -13,7 +13,7 @@
     generateTablePairingId,
   } from 'dbgate-tools';
   import FontIcon from '../icons/FontIcon.svelte';
-  import { closeModal, getActiveModalId } from '../modals/modalTools';
+  import InspectorHero from '../inspector/InspectorHero.svelte';
   import { useDatabaseInfo } from '../utility/metadataLoaders';
   import ColumnPanelSwitch from './ColumnPanelSwitch.svelte';
   import {
@@ -25,7 +25,6 @@
   } from './columnAlterTools';
   import { _t } from '../translations';
 
-  export let modalId;
   export let conid;
   export let database;
   export let schemaName;
@@ -34,6 +33,8 @@
   export let columnName = null;
   export let driver;
   export let onSaved = null;
+  // called when the edit is saved, deleted or cancelled
+  export let onClose;
 
   const dbInfo = useDatabaseInfo({ conid, database });
 
@@ -57,7 +58,6 @@
 
   let showErrors = false;
   let nothingToSave = false;
-  let closing = false;
   let domName;
 
   $: if (!initialized && table) initForm(table);
@@ -161,7 +161,7 @@
       e.preventDefault();
       pickType(filteredTypes[typeActive]);
     } else if (e.key == 'Escape' && typeListOpen) {
-      // keeps the sheet open, see handleWindowKeyDown
+      // keeps the editor open, see handleKeyDown
       e.preventDefault();
       typeListOpen = false;
     }
@@ -256,427 +256,292 @@
   }
 
   // ---- open / close
-  const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
   function close() {
-    if (closing) return;
-    closing = true;
-    // let the slide-out finish before the sheet leaves the modal stack
-    setTimeout(() => closeModal(modalId), prefersReducedMotion ? 120 : 200);
+    onClose?.();
   }
 
-  function handleWindowKeyDown(e) {
-    if (e.key != 'Escape' || e.defaultPrevented || modalId != getActiveModalId()) return;
+  function handleKeyDown(e) {
+    if (e.key != 'Escape' || e.defaultPrevented) return;
     e.preventDefault();
+    e.stopPropagation();
     close();
   }
 
-  onMount(async () => {
+  export async function focusPanel() {
     await tick();
-    domName?.focus();
-  });
+    // the inspector may still be sliding in, so don't let the focus scroll the page
+    domName?.focus({ preventScroll: true });
+  }
 </script>
 
-<svelte:window on:keydown={handleWindowKeyDown} />
+<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+<section
+  class="column-editor"
+  aria-label={isEdit
+    ? _t('columnPanel.editTitle', { defaultMessage: 'Edit column' })
+    : _t('columnPanel.addTitle', { defaultMessage: 'Add column' })}
+  on:keydown={handleKeyDown}
+  data-testid="ColumnSidePanel_sheet"
+>
+  <InspectorHero
+    icon={isEdit ? 'mdi mdi-table-column' : 'icon add-column'}
+    title={isEdit
+      ? _t('columnPanel.editTitle', { defaultMessage: 'Edit column' })
+      : _t('columnPanel.addTitle', { defaultMessage: 'Add column' })}
+    subtitle={isEdit ? columnName : schemaName ? `${schemaName}.${pureName}` : pureName}
+  />
 
-<div class="layer" class:closing data-testid="ColumnSidePanel_layer">
-  <div class="scrim" on:mousedown={close} />
-  <aside
-    class="sheet"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="ColumnSidePanel_title"
-    data-testid="ColumnSidePanel_sheet"
-  >
-    <header class="sheet-header">
-      <span class="sheet-icon">
-        <FontIcon icon={isEdit ? 'mdi mdi-table-column' : 'icon add-column'} />
-      </span>
-      <div class="sheet-heading">
-        <h2 id="ColumnSidePanel_title">
-          {isEdit
-            ? _t('columnPanel.editTitle', { defaultMessage: 'Edit column' })
-            : _t('columnPanel.addTitle', { defaultMessage: 'Add column' })}
-        </h2>
-        <span class="sheet-subtitle">{schemaName ? `${schemaName}.${pureName}` : pureName}</span>
+  {#if missingColumn}
+    <div class="sheet-body">
+      <div class="notice">
+        {_t('columnPanel.columnMissing', {
+          defaultMessage: 'Column {name} no longer exists in this table.',
+          values: { name: columnName },
+        })}
       </div>
-      <button
-        class="icon-button"
-        on:click={close}
-        title={_t('common.close', { defaultMessage: 'Close' })}
-        data-testid="ColumnSidePanel_closeButton"
-      >
-        <FontIcon icon="icon close" />
-      </button>
-    </header>
+    </div>
+  {:else}
+    <form class="sheet-body" id="ColumnSidePanel_form" on:submit|preventDefault={handleSave} autocomplete="off">
+      <div class="field">
+        <label class="field-label" for="ColumnSidePanel_name"
+          >{_t('columnPanel.name', { defaultMessage: 'Name' })}</label
+        >
+        <input
+          id="ColumnSidePanel_name"
+          class="input"
+          class:invalid={showErrors && nameError}
+          bind:value={name}
+          bind:this={domName}
+          spellcheck="false"
+          placeholder={_t('columnPanel.namePlaceholder', { defaultMessage: 'column_name' })}
+          data-testid="ColumnSidePanel_name"
+        />
+        {#if showErrors && nameError}
+          <div class="field-error">{nameError}</div>
+        {/if}
+      </div>
 
-    {#if missingColumn}
-      <div class="sheet-body">
-        <div class="notice">
-          {_t('columnPanel.columnMissing', {
-            defaultMessage: 'Column {name} no longer exists in this table.',
-            values: { name: columnName },
-          })}
+      <div class="field">
+        <label class="field-label" for="ColumnSidePanel_type"
+          >{_t('columnPanel.type', { defaultMessage: 'Type' })}</label
+        >
+        <div class="combo">
+          <input
+            id="ColumnSidePanel_type"
+            class="input combo-input"
+            class:invalid={showErrors && typeError}
+            bind:value={dataType}
+            spellcheck="false"
+            role="combobox"
+            aria-expanded={typeListOpen}
+            aria-controls="ColumnSidePanel_typeList"
+            aria-autocomplete="list"
+            placeholder={_t('columnPanel.typePlaceholder', { defaultMessage: 'Search or type, e.g. varchar(100)' })}
+            on:focus={e => {
+              e.currentTarget.select();
+              keepTypeSelection = true;
+              openTypeList();
+            }}
+            on:mouseup={e => {
+              if (keepTypeSelection) e.preventDefault();
+              keepTypeSelection = false;
+            }}
+            on:click={() => !typeListOpen && openTypeList()}
+            on:input={() => openTypeList(dataType)}
+            on:keydown={handleTypeKeyDown}
+            on:blur={() => (typeListOpen = false)}
+            data-testid="ColumnSidePanel_type"
+          />
+          <span class="combo-chevron"><FontIcon icon="icon chevron-down" /></span>
+          {#if typeListOpen && filteredTypes.length > 0}
+            <ul class="combo-list" id="ColumnSidePanel_typeList" role="listbox" bind:this={domTypeList}>
+              {#each filteredTypes as type, index (type)}
+                <li
+                  role="option"
+                  class:active={index == typeActive}
+                  aria-selected={type == dataType}
+                  on:mousedown|preventDefault={() => pickType(type)}
+                  on:mousemove={() => (typeActive = index)}
+                >
+                  <span class="combo-option">{type}</span>
+                  {#if type == dataType}
+                    <FontIcon icon="icon check" />
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+        {#if showErrors && typeError}
+          <div class="field-error">{typeError}</div>
+        {/if}
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="ColumnSidePanel_default"
+          >{_t('columnPanel.defaultValue', { defaultMessage: 'Default value' })}</label
+        >
+        <input
+          id="ColumnSidePanel_default"
+          class="input mono"
+          bind:value={defaultValue}
+          spellcheck="false"
+          placeholder={_t('columnPanel.defaultPlaceholder', { defaultMessage: "None, or e.g. 0, 'text', now()" })}
+          data-testid="ColumnSidePanel_default"
+        />
+        <div class="field-hint">
+          {_t('columnPanel.defaultHint', { defaultMessage: 'SQL expression, written as is. Quote text values.' })}
         </div>
       </div>
-    {:else}
-      <form class="sheet-body" id="ColumnSidePanel_form" on:submit|preventDefault={handleSave} autocomplete="off">
-        <div class="field">
-          <label class="field-label" for="ColumnSidePanel_name"
-            >{_t('columnPanel.name', { defaultMessage: 'Name' })}</label
-          >
-          <input
-            id="ColumnSidePanel_name"
-            class="input"
-            class:invalid={showErrors && nameError}
-            bind:value={name}
-            bind:this={domName}
-            spellcheck="false"
-            placeholder={_t('columnPanel.namePlaceholder', { defaultMessage: 'column_name' })}
-            data-testid="ColumnSidePanel_name"
-          />
-          {#if showErrors && nameError}
-            <div class="field-error">{nameError}</div>
-          {/if}
-        </div>
 
-        <div class="field">
-          <label class="field-label" for="ColumnSidePanel_type"
-            >{_t('columnPanel.type', { defaultMessage: 'Type' })}</label
-          >
-          <div class="combo">
-            <input
-              id="ColumnSidePanel_type"
-              class="input combo-input"
-              class:invalid={showErrors && typeError}
-              bind:value={dataType}
-              spellcheck="false"
-              role="combobox"
-              aria-expanded={typeListOpen}
-              aria-controls="ColumnSidePanel_typeList"
-              aria-autocomplete="list"
-              placeholder={_t('columnPanel.typePlaceholder', { defaultMessage: 'Search or type, e.g. varchar(100)' })}
-              on:focus={e => {
-                e.currentTarget.select();
-                keepTypeSelection = true;
-                openTypeList();
-              }}
-              on:mouseup={e => {
-                if (keepTypeSelection) e.preventDefault();
-                keepTypeSelection = false;
-              }}
-              on:click={() => !typeListOpen && openTypeList()}
-              on:input={() => openTypeList(dataType)}
-              on:keydown={handleTypeKeyDown}
-              on:blur={() => (typeListOpen = false)}
-              data-testid="ColumnSidePanel_type"
-            />
-            <span class="combo-chevron"><FontIcon icon="icon chevron-down" /></span>
-            {#if typeListOpen && filteredTypes.length > 0}
-              <ul class="combo-list" id="ColumnSidePanel_typeList" role="listbox" bind:this={domTypeList}>
-                {#each filteredTypes as type, index (type)}
-                  <li
-                    role="option"
-                    class:active={index == typeActive}
-                    aria-selected={type == dataType}
-                    on:mousedown|preventDefault={() => pickType(type)}
-                    on:mousemove={() => (typeActive = index)}
-                  >
-                    <span class="combo-option">{type}</span>
-                    {#if type == dataType}
-                      <FontIcon icon="icon check" />
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </div>
-          {#if showErrors && typeError}
-            <div class="field-error">{typeError}</div>
-          {/if}
-        </div>
-
-        <div class="field">
-          <label class="field-label" for="ColumnSidePanel_default"
-            >{_t('columnPanel.defaultValue', { defaultMessage: 'Default value' })}</label
-          >
-          <input
-            id="ColumnSidePanel_default"
-            class="input mono"
-            bind:value={defaultValue}
-            spellcheck="false"
-            placeholder={_t('columnPanel.defaultPlaceholder', { defaultMessage: "None, or e.g. 0, 'text', now()" })}
-            data-testid="ColumnSidePanel_default"
-          />
-          <div class="field-hint">
-            {_t('columnPanel.defaultHint', { defaultMessage: 'SQL expression, written as is. Quote text values.' })}
-          </div>
-        </div>
-
-        <div class="group-label">{_t('columnPanel.constraints', { defaultMessage: 'Constraints' })}</div>
-        <div class="card">
-          {#if !dialect?.specificNullabilityImplementation}
-            <ColumnPanelSwitch
-              bind:checked={nullable}
-              disabled={isPrimaryKey}
-              label={_t('columnPanel.nullable', { defaultMessage: 'Nullable' })}
-              hint={isPrimaryKey
-                ? _t('columnPanel.nullablePrimaryKeyHint', { defaultMessage: 'Primary key columns are never null' })
-                : _t('columnPanel.nullableHint', { defaultMessage: 'Rows may leave this value empty' })}
-              data-testid="ColumnSidePanel_nullable"
-            />
-          {/if}
-          {#if !dialect?.omitUniqueConstraints}
-            <ColumnPanelSwitch
-              bind:checked={isUnique}
-              label={_t('columnPanel.unique', { defaultMessage: 'Unique' })}
-              hint={_t('columnPanel.uniqueHint', { defaultMessage: 'No two rows share a value' })}
-              data-testid="ColumnSidePanel_unique"
-            />
-          {/if}
+      <div class="group-label">{_t('columnPanel.constraints', { defaultMessage: 'Constraints' })}</div>
+      <div class="card">
+        {#if !dialect?.specificNullabilityImplementation}
           <ColumnPanelSwitch
-            bind:checked={isPrimaryKey}
-            label={_t('columnPanel.primaryKey', { defaultMessage: 'Primary key' })}
-            hint={_t('columnPanel.primaryKeyHint', { defaultMessage: 'Identifies each row' })}
-            data-testid="ColumnSidePanel_primaryKey"
+            bind:checked={nullable}
+            disabled={isPrimaryKey}
+            label={_t('columnPanel.nullable', { defaultMessage: 'Nullable' })}
+            hint={isPrimaryKey
+              ? _t('columnPanel.nullablePrimaryKeyHint', { defaultMessage: 'Primary key columns are never null' })
+              : _t('columnPanel.nullableHint', { defaultMessage: 'Rows may leave this value empty' })}
+            data-testid="ColumnSidePanel_nullable"
           />
-        </div>
+        {/if}
+        {#if !dialect?.omitUniqueConstraints}
+          <ColumnPanelSwitch
+            bind:checked={isUnique}
+            label={_t('columnPanel.unique', { defaultMessage: 'Unique' })}
+            hint={_t('columnPanel.uniqueHint', { defaultMessage: 'No two rows share a value' })}
+            data-testid="ColumnSidePanel_unique"
+          />
+        {/if}
+        <ColumnPanelSwitch
+          bind:checked={isPrimaryKey}
+          label={_t('columnPanel.primaryKey', { defaultMessage: 'Primary key' })}
+          hint={_t('columnPanel.primaryKeyHint', { defaultMessage: 'Identifies each row' })}
+          data-testid="ColumnSidePanel_primaryKey"
+        />
+      </div>
 
-        {#if !dialect?.omitForeignKeys}
-          <div class="group-label">{_t('columnPanel.foreignKey', { defaultMessage: 'Foreign key' })}</div>
+      {#if !dialect?.omitForeignKeys}
+        <div class="group-label">{_t('columnPanel.foreignKey', { defaultMessage: 'Foreign key' })}</div>
+        <div class="field">
+          <label class="field-label" for="ColumnSidePanel_refTable"
+            >{_t('columnPanel.referencedTable', { defaultMessage: 'References table' })}</label
+          >
+          <div class="select">
+            <select
+              id="ColumnSidePanel_refTable"
+              class="input"
+              value={refTableKey}
+              on:change={e => handleRefTableChange(e.currentTarget.value)}
+              data-testid="ColumnSidePanel_refTable"
+            >
+              <option value="">{_t('columnPanel.noReference', { defaultMessage: 'None' })}</option>
+              {#each refTables as tbl (fullNameToString(tbl))}
+                <option value={fullNameToString(tbl)}>{tableLabel(tbl)}</option>
+              {/each}
+            </select>
+            <span class="combo-chevron"><FontIcon icon="icon chevron-down" /></span>
+          </div>
+        </div>
+        {#if refTableKey}
           <div class="field">
-            <label class="field-label" for="ColumnSidePanel_refTable"
-              >{_t('columnPanel.referencedTable', { defaultMessage: 'References table' })}</label
+            <label class="field-label" for="ColumnSidePanel_refColumn"
+              >{_t('columnPanel.referencedColumn', { defaultMessage: 'Referenced column' })}</label
             >
             <div class="select">
               <select
-                id="ColumnSidePanel_refTable"
+                id="ColumnSidePanel_refColumn"
                 class="input"
-                value={refTableKey}
-                on:change={e => handleRefTableChange(e.currentTarget.value)}
-                data-testid="ColumnSidePanel_refTable"
+                class:invalid={showErrors && referenceError}
+                bind:value={refColumnName}
+                data-testid="ColumnSidePanel_refColumn"
               >
-                <option value="">{_t('columnPanel.noReference', { defaultMessage: 'None' })}</option>
-                {#each refTables as tbl (fullNameToString(tbl))}
-                  <option value={fullNameToString(tbl)}>{tableLabel(tbl)}</option>
+                {#each refTable?.columns || [] as refColumn (refColumn.columnName)}
+                  <option value={refColumn.columnName}>{refColumn.columnName} · {refColumn.dataType}</option>
                 {/each}
               </select>
               <span class="combo-chevron"><FontIcon icon="icon chevron-down" /></span>
             </div>
+            {#if showErrors && referenceError}
+              <div class="field-error">{referenceError}</div>
+            {/if}
           </div>
-          {#if refTableKey}
-            <div class="field">
-              <label class="field-label" for="ColumnSidePanel_refColumn"
-                >{_t('columnPanel.referencedColumn', { defaultMessage: 'Referenced column' })}</label
-              >
-              <div class="select">
-                <select
-                  id="ColumnSidePanel_refColumn"
-                  class="input"
-                  class:invalid={showErrors && referenceError}
-                  bind:value={refColumnName}
-                  data-testid="ColumnSidePanel_refColumn"
-                >
-                  {#each refTable?.columns || [] as refColumn (refColumn.columnName)}
-                    <option value={refColumn.columnName}>{refColumn.columnName} · {refColumn.dataType}</option>
-                  {/each}
-                </select>
-                <span class="combo-chevron"><FontIcon icon="icon chevron-down" /></span>
-              </div>
-              {#if showErrors && referenceError}
-                <div class="field-error">{referenceError}</div>
-              {/if}
-            </div>
-          {/if}
         {/if}
-
-        <div class="field">
-          <label class="field-label" for="ColumnSidePanel_comment"
-            >{_t('columnPanel.comment', { defaultMessage: 'Comment' })}</label
-          >
-          <textarea
-            id="ColumnSidePanel_comment"
-            class="input textarea"
-            rows="2"
-            bind:value={comment}
-            disabled={!supportsComment}
-            placeholder={supportsComment
-              ? _t('columnPanel.commentPlaceholder', { defaultMessage: 'What this column holds' })
-              : ''}
-            data-testid="ColumnSidePanel_comment"
-          />
-          {#if !supportsComment}
-            <div class="field-hint">
-              {_t('columnPanel.commentUnsupported', {
-                defaultMessage: 'Column comments are not supported for this database yet.',
-              })}
-            </div>
-          {/if}
-        </div>
-      </form>
-    {/if}
-
-    <footer class="sheet-footer">
-      {#if isEdit && canEdit}
-        <button type="button" class="button danger" on:click={handleDelete} data-testid="ColumnSidePanel_deleteButton">
-          <FontIcon icon="icon delete" />
-          {_t('columnPanel.delete', { defaultMessage: 'Delete' })}
-        </button>
       {/if}
-      <span class="footer-note" role="status">
-        {#if nothingToSave}
-          {_t('columnPanel.nothingToSave', { defaultMessage: 'No changes to save' })}
+
+      <div class="field">
+        <label class="field-label" for="ColumnSidePanel_comment"
+          >{_t('columnPanel.comment', { defaultMessage: 'Comment' })}</label
+        >
+        <textarea
+          id="ColumnSidePanel_comment"
+          class="input textarea"
+          rows="2"
+          bind:value={comment}
+          disabled={!supportsComment}
+          placeholder={supportsComment
+            ? _t('columnPanel.commentPlaceholder', { defaultMessage: 'What this column holds' })
+            : ''}
+          data-testid="ColumnSidePanel_comment"
+        />
+        {#if !supportsComment}
+          <div class="field-hint">
+            {_t('columnPanel.commentUnsupported', {
+              defaultMessage: 'Column comments are not supported for this database yet.',
+            })}
+          </div>
         {/if}
-      </span>
-      <button type="button" class="button" on:click={close} data-testid="ColumnSidePanel_cancelButton">
-        {_t('common.cancel', { defaultMessage: 'Cancel' })}
+      </div>
+    </form>
+  {/if}
+
+  <footer class="sheet-footer">
+    {#if isEdit && canEdit}
+      <button type="button" class="button danger" on:click={handleDelete} data-testid="ColumnSidePanel_deleteButton">
+        <FontIcon icon="icon delete" />
+        {_t('columnPanel.delete', { defaultMessage: 'Delete' })}
       </button>
-      <button
-        type="submit"
-        form="ColumnSidePanel_form"
-        class="button primary"
-        disabled={!canEdit}
-        data-testid="ColumnSidePanel_saveButton"
-      >
-        {isEdit
-          ? _t('columnPanel.reviewChanges', { defaultMessage: 'Review changes' })
-          : _t('columnPanel.reviewAdd', { defaultMessage: 'Add column' })}
-      </button>
-    </footer>
-  </aside>
-</div>
+    {/if}
+    <span class="footer-note" role="status">
+      {#if nothingToSave}
+        {_t('columnPanel.nothingToSave', { defaultMessage: 'No changes to save' })}
+      {/if}
+    </span>
+    <button type="button" class="button" on:click={close} data-testid="ColumnSidePanel_cancelButton">
+      {_t('common.cancel', { defaultMessage: 'Cancel' })}
+    </button>
+    <button
+      type="submit"
+      form="ColumnSidePanel_form"
+      class="button primary"
+      disabled={!canEdit}
+      data-testid="ColumnSidePanel_saveButton"
+    >
+      {isEdit
+        ? _t('columnPanel.reviewChanges', { defaultMessage: 'Review changes' })
+        : _t('columnPanel.reviewAdd', { defaultMessage: 'Add column' })}
+    </button>
+  </footer>
+</section>
 
 <style>
-  .layer {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-  }
-  .scrim {
-    position: absolute;
-    inset: 0;
-    background: var(--theme-modal-overlay-background);
-    opacity: 0.45;
-    animation: column-panel-scrim-in 200ms var(--dim-ease-out);
-  }
-  .sheet {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(420px, 100vw);
+  .column-editor {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    background: var(--theme-modal-background);
-    border-left: var(--theme-modal-border);
-    box-shadow: var(--theme-modal-shadow);
     color: var(--theme-generic-font);
     font-size: 13px;
-    animation: column-panel-slide-in 280ms var(--dim-ease-spring);
-  }
-  .closing .scrim {
-    opacity: 0;
-    transition: opacity 200ms var(--dim-ease-out);
-  }
-  .closing .sheet {
-    transform: translateX(100%);
-    transition: transform 200ms var(--dim-ease-out);
-  }
-
-  @keyframes column-panel-slide-in {
-    from {
-      transform: translateX(100%);
-    }
-  }
-  @keyframes column-panel-scrim-in {
-    from {
-      opacity: 0;
-    }
-  }
-  @keyframes column-panel-fade-in {
-    from {
-      opacity: 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .sheet {
-      animation: column-panel-fade-in 120ms linear;
-    }
-    .closing .sheet {
-      transform: none;
-      opacity: 0;
-      transition: opacity 120ms linear;
-    }
-  }
-
-  .sheet-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 12px 14px 18px;
-    border-bottom: var(--theme-modal-border);
-  }
-  .sheet-icon {
-    width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9px;
-    font-size: 18px;
-    color: var(--theme-ui-accent-strong);
-    background: var(--theme-ui-accent-soft);
-  }
-  .sheet-heading {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-  h2 {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-  }
-  .sheet-subtitle {
-    font-size: 12px;
-    color: var(--theme-generic-font-grayed);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .icon-button {
-    width: 28px;
-    height: 28px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: none;
-    border-radius: var(--dim-radius-md);
-    background: transparent;
-    color: var(--theme-generic-font-grayed);
-    font-size: 16px;
-    cursor: pointer;
-    transition:
-      background-color var(--dim-transition-fast),
-      color var(--dim-transition-fast);
-  }
-  .icon-button:hover {
-    background: var(--theme-modal-close-hover-background);
-    color: var(--theme-generic-font);
   }
 
   .sheet-body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 16px 18px 20px;
+    padding: 14px 16px 20px;
+    border-top: 1px solid var(--theme-ui-border-subtle);
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -840,7 +705,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 18px;
+    padding: 10px 12px 10px 16px;
     border-top: var(--theme-modal-border);
     background: var(--theme-modal-footer-background);
   }

@@ -1,38 +1,31 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import FontIcon from '../icons/FontIcon.svelte';
-  import { showModal } from '../modals/modalTools';
-  import ColumnSidePanel from '../tableeditor/ColumnSidePanel.svelte';
+  import type { TableInspector } from '../inspector/tableInspector';
   import { _t } from '../translations';
 
-  export let conid;
-  export let database;
   export let table;
-  export let driver;
-  export let onSaved = null;
+
+  // the column editor lives in the table data tab's inspector, which also refreshes the grid after a change
+  const inspector = getContext('tableInspector') as TableInspector;
 
   function handleClick() {
-    showModal(ColumnSidePanel, {
-      conid,
-      database,
-      schemaName: table.schemaName,
-      pureName: table.pureName,
-      columnName: null,
-      driver,
-      onSaved,
-    });
+    inspector.editColumn(null);
   }
 </script>
 
-<button
-  class="add-column buttonLike"
-  tabindex="-1"
-  on:click|stopPropagation={handleClick}
-  title={_t('columnMenu.addColumnTitle', { defaultMessage: 'Add column' })}
-  aria-label={_t('columnMenu.addColumnTitle', { defaultMessage: 'Add column' })}
-  data-testid="ColumnAddButton_button"
->
-  <FontIcon icon="icon plus" />
-</button>
+{#if inspector?.matchesTable(table)}
+  <button
+    class="add-column buttonLike"
+    tabindex="-1"
+    on:click|stopPropagation={handleClick}
+    title={_t('columnMenu.addColumnTitle', { defaultMessage: 'Add column' })}
+    aria-label={_t('columnMenu.addColumnTitle', { defaultMessage: 'Add column' })}
+    data-testid="ColumnAddButton_button"
+  >
+    <FontIcon icon="icon plus" />
+  </button>
+{/if}
 
 <style>
   .add-column {

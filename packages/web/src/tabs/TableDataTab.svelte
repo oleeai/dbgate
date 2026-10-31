@@ -130,6 +130,8 @@
   import { getNumberIcon } from '../icons/FontIcon.svelte';
   import { _t } from '../translations';
   import { trackUsage } from '../utility/usageAnalytics';
+  import TableInspector from '../inspector/TableInspector.svelte';
+  import { createTableInspector } from '../inspector/tableInspector';
 
   export let tabid;
   export let conid;
@@ -337,6 +339,15 @@
   setContext('collapsedLeftColumnStore', collapsedLeftColumnStore);
   $: setLocalStorage('dataGrid_collapsedLeftColumn', $collapsedLeftColumnStore);
 
+  // the inspector on the right shows the selected row, column or the table
+  const inspector = createTableInspector({ conid, database, schemaName, pureName });
+  setContext('tableInspector', inspector);
+  const inspectorView = inspector.view;
+
+  export function toggleInspector() {
+    inspector.toggle();
+  }
+
   onDestroy(() => {
     closeRefreshTimer();
   });
@@ -359,20 +370,22 @@
 </script>
 
 <ToolStripContainer>
-  <TableDataGrid
-    {...$$props}
-    activateOnTabVisible
-    config={$config}
-    setConfig={config.update}
-    cache={$cache}
-    setCache={cache.update}
-    changeSetState={$changeSetStore}
-    focusOnVisible
-    pagingFooter
-    allowRowSidePanel
-    {changeSetStore}
-    {dispatchChangeSet}
-  />
+  <TableInspector {inspector} {conid} {database} {schemaName} {pureName}>
+    <TableDataGrid
+      {...$$props}
+      activateOnTabVisible
+      config={$config}
+      setConfig={config.update}
+      cache={$cache}
+      setCache={cache.update}
+      changeSetState={$changeSetStore}
+      focusOnVisible
+      pagingFooter
+      allowInspector
+      {changeSetStore}
+      {dispatchChangeSet}
+    />
+  </TableInspector>
 
   <svelte:fragment slot="toolstrip">
     <ToolStripFilterBuilder
@@ -443,6 +456,12 @@
       hideDisabled
       iconOnly
       data-testid="TableDataTab_toggleCellDataView"
+    />
+    <ToolStripCommandButton
+      command="tableData.toggleInspector"
+      iconOnly
+      active={$inspectorView.open}
+      data-testid="TableDataTab_toggleInspector"
     />
 
     <div class="toolstrip-divider" />

@@ -353,6 +353,36 @@ order by con.conname`,
   return { rls, indexes, triggers, policies, enums, checks };
 }
 
+export interface TableSizeStats {
+  // pg_class.reltuples, null when the table was never analysed
+  rowEstimate: number | null;
+  totalBytes: number | null;
+}
+
+function readNumber(value) {
+  const raw = value?.$bigint ?? value?.$decimal ?? value;
+  if (raw == null || raw === '') return null;
+  const number = Number(raw);
+  return Number.isFinite(number) ? number : null;
+}
+
+// Row estimate and size on disk (with indexes and TOAST) from the catalog, for the inspector's table summary
+export async function loadPostgresTableStats({ conid, database, schemaName, pureName }): Promise<TableSizeStats> {
+  const rows = await catalogRows(
+    conid,
+    database,
+    `select c.reltuples::bigint as row_estimate, pg_catalog.pg_total_relation_size(c.oid) as total_bytes
+from pg_catalog.pg_class c
+join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+where n.nspname = ${sqlLiteral(schemaName)} and c.relname = ${sqlLiteral(pureName)}`
+  );
+  const rowEstimate = readNumber(rows[0]?.row_estimate);
+  return {
+    rowEstimate: rowEstimate != null && rowEstimate >= 0 ? rowEstimate : null,
+    totalBytes: readNumber(rows[0]?.total_bytes),
+  };
+}
+
 function dumpSql(driver, fn) {
   try {
     const dmp = driver.createDumper();
