@@ -191,6 +191,19 @@
   });
 
   registerCommand({
+    id: 'dataGrid.quickLook',
+    category: __t('command.datagrid', { defaultMessage: 'Data grid' }),
+    name: __t('command.datagrid.quickLook', { defaultMessage: 'Quick Look' }),
+    icon: 'icon eye',
+    // shown in menus; the grid handles Space itself
+    keyText: 'Space',
+    disableHandleKeyText: 'Space',
+    usageAnalytics: () => getDataGridUsage('quick_look'),
+    testEnabled: () => getCurrentDataGrid()?.quickLookEnabled(),
+    onClick: () => getCurrentDataGrid().quickLook(),
+  });
+
+  registerCommand({
     id: 'dataGrid.editJsonDocument',
     category: __t('command.datagrid', { defaultMessage: 'Data grid' }),
     keyText: 'CtrlOrCommand+J',
@@ -269,9 +282,21 @@
     id: 'dataGrid.findColumn',
     category: __t('command.datagrid', { defaultMessage: 'Data grid' }),
     name: __t('command.datagrid.findColumn', { defaultMessage: 'Find column' }),
-    keyText: 'CtrlOrCommand+F',
+    // Ctrl/Cmd+F shows the filter row now; jumping to a column moved to Ctrl/Cmd+Shift+O ("go to")
+    keyText: 'CtrlOrCommand+Shift+O',
     testEnabled: () => getCurrentDataGrid() != null,
     getSubCommands: () => getCurrentDataGrid().buildFindMenu(),
+  });
+  registerCommand({
+    id: 'dataGrid.toggleFilterRow',
+    category: __t('command.datagrid', { defaultMessage: 'Data grid' }),
+    name: __t('command.datagrid.toggleFilterRow', { defaultMessage: 'Show or hide filter row' }),
+    toolbarName: __t('command.datagrid.toggleFilterRow.toolbar', { defaultMessage: 'Filters' }),
+    icon: 'icon filter-variant',
+    keyText: 'CtrlOrCommand+F',
+    usageAnalytics: () => getDataGridUsage('toggle_filter_row'),
+    testEnabled: () => getCurrentDataGrid()?.toggleFilterRowEnabled(),
+    onClick: () => getCurrentDataGrid().toggleFilterRow(),
   });
   registerCommand({
     id: 'dataGrid.hideColumn',
@@ -484,7 +509,7 @@
   import EditJsonModal from '../modals/EditJsonModal.svelte';
   import { apiCall } from '../utility/api';
   import getElectron from '../utility/getElectron';
-  import { isCtrlOrCommandKey, isMac } from '../utility/common';
+  import { formatKeyText, isCtrlOrCommandKey, isMac } from '../utility/common';
   import { createGeoJsonFromSelection, selectionCouldBeShownOnMap } from '../elements/SelectionMapView.svelte';
   import ErrorMessageModal from '../modals/ErrorMessageModal.svelte';
   import EditCellDataModal from '../modals/EditCellDataModal.svelte';
@@ -499,7 +524,10 @@
   import hasPermission from '../utility/hasPermission';
   import macros from '../macro/macros';
   import type { TableInspector } from '../inspector/tableInspector';
+  import { createGridUndoToast } from './gridUndoToast';
+  import CellQuickLook from './CellQuickLook.svelte';
   import { trackUsage } from '../utility/usageAnalytics';
+  import { dataGridFilterRowVisible } from './dataGridFilterRow';
 
   export let onLoadNextData = undefined;
   export let onFetchAllRows = undefined;
@@ -644,6 +672,13 @@
     if (smoothRafId) cancelAnimationFrame(smoothRafId);
   });
 
+  // edits of the pending changes show a toast with Undo instead of asking first
+  const undoToast = createGridUndoToast(() => grider);
+  const tabVisible: any = getContext('tabVisible');
+  $: undoToast.sync(grider);
+  $: if (tabVisible && !$tabVisible) undoToast.close();
+  onDestroy(() => undoToast.close());
+
   function callUnsubscribeDbRefresh() {
     if (unsubscribeDbRefresh) {
       unsubscribeDbRefresh();
@@ -676,7 +711,7 @@
       cancelAnimationFrame(smoothRafId);
       smoothRafId = null;
     }
-    if (domTbody) domTbody.style.transform = 'translateY(0)';
+    applyTbodyOffset();
     if (domVerticalScroll) {
       domVerticalScroll.scroll(0);
     }
@@ -807,10 +842,12 @@
       if (_.isNumber(index)) grider.revertRowChanges(index);
     }
     grider.endUpdate();
+    undoToast.announce('revertRows');
   }
 
   export function revertAllChanges() {
     grider.revertAllChanges();
+    undoToast.announce('revertAll');
   }
 
   export function deleteSelectedRows() {
@@ -821,6 +858,7 @@
       grider.deleteRow(index);
     }
     grider.endUpdate();
+    undoToast.announce('delete');
   }
 
   export function addNewColumnEnabled() {
@@ -847,7 +885,10 @@
   const inspectorApi = {
     navigateRow: (rowIndex, delta) =>
       moveCurrentCell(rowIndex + delta, _.isNumber(currentCell?.[1]) ? currentCell[1] : 0),
-    selectRow: rowIndex => selectRow(rowIndex),
+    rowInserted: rowIndex => {
+      undoToast.announce('insert');
+      selectRow(rowIndex);
+    },
     focus: () => domFocusField?.focus(),
     refresh: () => refresh(),
   };
@@ -894,6 +935,52 @@
     scrollIntoView(cell);
   }
 
+  // Quick Look: Space previews the current cell, Space or Esc closes it, the arrows move it along with the cell
+  let quickLookOpen = false;
+
+  function handleQuickLookKeyDown(event) {
+    if (event.key == ' ' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      quickLookOpen = !quickLookOpen && isRegularCell(currentCell);
+      return true;
+    }
+    if (event.key == 'Escape' && quickLookOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      quickLookOpen = false;
+      return true;
+    }
+    // Enter and F2 still start editing, the preview steps aside
+    if (quickLookOpen && (event.key == 'Enter' || event.key == 'F2') && cellEditable(currentCell)) {
+      quickLookOpen = false;
+    }
+    return false;
+  }
+
+  // a right click selects a cell without moving the current cell, so the selection wins
+  function getQuickLookCell() {
+    return selectedCells.length == 1 && isRegularCell(selectedCells[0]) ? selectedCells[0] : currentCell;
+  }
+
+  export function quickLookEnabled() {
+    const cell = getQuickLookCell();
+    return isRegularCell(cell) && !!grider?.getRowData(cell[0]);
+  }
+
+  export function quickLook() {
+    if (!quickLookEnabled()) return;
+    currentCell = getQuickLookCell();
+    quickLookOpen = true;
+    domFocusField?.focus();
+  }
+
+  function closeQuickLook(restoreFocus) {
+    quickLookOpen = false;
+    if (restoreFocus) domFocusField?.focus();
+  }
+
+  $: if (quickLookOpen && ($inplaceEditorState.cell || !isRegularCell(currentCell))) quickLookOpen = false;
+
   export async function insertNewRow() {
     if (!grider.canInsert) return;
     if (inspectorEnabled) {
@@ -930,6 +1017,7 @@
       }
     }
     grider.endUpdate();
+    undoToast.announce('clone');
 
     if (rowIndex == null) return;
     const cell = [rowIndex, (currentCell && currentCell[1]) || 0];
@@ -950,6 +1038,7 @@
         setCellValue(cell, value);
       });
     grider.endUpdate();
+    undoToast.announce(value === null ? 'setNull' : 'removeField');
   }
 
   export function undo() {
@@ -1015,6 +1104,48 @@
 
   export function clearFilterEnabled() {
     return display.filterCount > 0;
+  }
+
+  // fades the filter row in when it is opened, not when columns scroll into view
+  let filterRowAppearing = false;
+
+  export function toggleFilterRowEnabled() {
+    return !!display?.filterable;
+  }
+
+  // Hides the filter row, or shows it and puts the cursor in the current column's filter.
+  // While a filter is active the row stays, so the shortcut just moves the cursor there.
+  export async function toggleFilterRow() {
+    if (filterRowVisible && !filterRowHasFilters) {
+      if (isFocusInFilterRow()) domFocusField?.focus();
+      $dataGridFilterRowVisible = false;
+      return;
+    }
+    const currentColumn = _.isNumber(currentCell?.[1]) ? realColumnUniqueNames[currentCell[1]] : null;
+    await showFilterRow(currentColumn);
+  }
+
+  async function showFilterRow(uniqueName = null) {
+    if (!filterRowVisible) {
+      filterRowAppearing = true;
+      setTimeout(() => (filterRowAppearing = false), 250);
+    }
+    $dataGridFilterRowVisible = true;
+    await tick();
+    const refs = domFilterControlsRef.get();
+    const target = (uniqueName && refs[uniqueName]) || refs[visibleRealColumns[0]?.uniqueName];
+    if (target?.isConnected) target.focus();
+  }
+
+  function isFocusInFilterRow() {
+    const active = document.activeElement;
+    return !!active && !!domTable?.contains(active) && !!active.closest?.('td.filter-cell');
+  }
+
+  function hideFilterRowFromFilter() {
+    if (filterRowHasFilters) return;
+    domFocusField?.focus();
+    $dataGridFilterRowVisible = false;
   }
 
   export function openFreeTable() {
@@ -1426,7 +1557,33 @@
 
   $: headerColWidth = 40;
 
-  $: gridScrollAreaHeight = containerHeight - 2 * rowHeight;
+  // The filter row is hidden until asked for; an active filter keeps it on screen, so it is never hidden silently
+  $: filterRowHasFilters = !!display?.filterable && display.filterCount > 0;
+  $: filterRowVisible = !!display?.filterable && ($dataGridFilterRowVisible || filterRowHasFilters);
+  $: headerRowCount = filterRowVisible ? 2 : 1;
+
+  // A few rows above the first visible one are rendered under the translucent header,
+  // so content keeps scrolling under it instead of popping out at the edge
+  $: underlayRowCount = Math.min(firstVisibleRowScrollIndex, headerRowCount + 1);
+  $: if (domTbody && rowHeight > 0 && underlayRowCount >= 0) applyTbodyOffset();
+
+  function applyTbodyOffset() {
+    if (!domTbody) return;
+    const underlay = Math.min(firstVisibleRowScrollIndex, headerRowCount + 1);
+    domTbody.style.transform = `translateY(-${rowPixelOffset + underlay * (rowPitch || rowHeight || 24)}px)`;
+  }
+
+  // Rendered row height; collapsed borders make it a pixel taller than the declared one
+  let rowPitch = 0;
+  let rowPitchMeasuredFor = null;
+  afterUpdate(() => {
+    if (rowPitchMeasuredFor === rowHeight || !domTbody?.rows?.length) return;
+    rowPitch = domTbody.rows[0].getBoundingClientRect().height;
+    rowPitchMeasuredFor = rowHeight;
+    applyTbodyOffset();
+  });
+
+  $: gridScrollAreaHeight = containerHeight - headerRowCount * rowHeight;
   $: gridScrollAreaWidth = containerWidth - columnSizes.frozenSize - headerColWidth - 32;
 
   $: visibleRowCountUpperBound =
@@ -1659,7 +1816,7 @@
       if (newRow != null) {
         firstVisibleRowScrollIndex = newRow;
         rowPixelOffset = 0;
-        if (domTbody) domTbody.style.transform = 'translateY(0)';
+        applyTbodyOffset();
         domVerticalScroll.scroll(newRow);
       }
     }
@@ -1863,7 +2020,7 @@
     }
 
     domVerticalScroll.scroll(firstVisibleRowScrollIndex + rowPixelOffset / pixelsPerRow);
-    if (domTbody) domTbody.style.transform = `translateY(-${rowPixelOffset}px)`;
+    applyTbodyOffset();
   }
 
   function getMaxHorizontalPixelPosition() {
@@ -1937,6 +2094,7 @@
 
   function handleGridKeyDown(event) {
     if ($inplaceEditorState.cell) return;
+    if (handleQuickLookKeyDown(event)) return;
     const currentCellEditable = cellEditable(currentCell);
 
     if (
@@ -2027,10 +2185,11 @@
     } else {
       switch (event.keyCode) {
         case keycodes.upArrow:
-          if (currentCell[0] == 0) return focusFilterEditor(currentCell[1]);
+          if (currentCell[0] == 0 && filterRowVisible) return focusFilterEditor(currentCell[1]);
           return _.isNumber(currentCell[0]) ? moveCurrentCell(currentCell[0] - 1, currentCell[1], event) : null;
         case keycodes.downArrow:
-          if (currentCell[0] == 'header') return focusFilterEditor(currentCell[1]);
+          if (currentCell[0] == 'header')
+            return filterRowVisible ? focusFilterEditor(currentCell[1]) : moveCurrentCell(0, currentCell[1], event);
           return _.isNumber(currentCell[0]) ? moveCurrentCell(currentCell[0] + 1, currentCell[1], event) : null;
         case keycodes.enter:
           if (!cellEditable(currentCell))
@@ -2333,6 +2492,7 @@
     { command: 'dataGrid.undo', hideDisabled: true },
     { command: 'dataGrid.redo', hideDisabled: true },
     { divider: true },
+    { command: 'dataGrid.quickLook', hideDisabled: true },
     { command: 'dataGrid.editCellValue', hideDisabled: true },
     { command: 'dataGrid.newJson', hideDisabled: true },
     { command: 'dataGrid.editJsonDocument', hideDisabled: true },
@@ -2498,7 +2658,10 @@
         isGridFocused = true;
       }}
       on:blur
-      on:paste={handlePaste}
+      on:paste={e => {
+        handlePaste(e);
+        undoToast.announce('paste');
+      }}
       on:copy={copyToClipboard}
       on:blur={() => {
         isGridFocused = false;
@@ -2513,19 +2676,41 @@
         on:dblclick={handleGridDoubleClick}
       >
         <thead>
-          <tr>
+          <tr style={`height:${rowHeight}px`}>
             <td
-              class="header-cell"
+              class="header-cell corner-cell"
               data-row="header"
               data-col="header"
               style={`width:${headerColWidth}px; min-width:${headerColWidth}px; max-width:${headerColWidth}px; position:sticky; left:0; top:0; z-index:5`}
             >
-              {#if !hideGridLeftColumn}
-                <CollapseButton
-                  collapsed={$collapsedLeftColumnStore}
-                  on:click={() => collapsedLeftColumnStore.update(x => !x)}
-                />
-              {/if}
+              <div class="corner-controls">
+                {#if !hideGridLeftColumn}
+                  <CollapseButton
+                    collapsed={$collapsedLeftColumnStore}
+                    on:click={() => collapsedLeftColumnStore.update(x => !x)}
+                  />
+                {/if}
+                {#if display.filterable}
+                  <button
+                    type="button"
+                    class="filter-row-toggle buttonLike"
+                    class:active={filterRowVisible}
+                    aria-pressed={filterRowVisible}
+                    title={filterRowHasFilters
+                      ? _t('datagrid.filterRow.activeFilters', {
+                          defaultMessage: 'Filters are on. Clear them to hide the filter row',
+                        })
+                      : filterRowVisible
+                        ? `${_t('datagrid.filterRow.hide', { defaultMessage: 'Hide filter row' })} (${formatKeyText('CtrlOrCommand+F')})`
+                        : `${_t('datagrid.filterRow.show', { defaultMessage: 'Show filter row' })} (${formatKeyText('CtrlOrCommand+F')})`}
+                    data-testid="DataGridCore_button_toggleFilterRow"
+                    on:mousedown|preventDefault
+                    on:click|stopPropagation={() => toggleFilterRow()}
+                  >
+                    <FontIcon icon="icon filter-variant" />
+                  </button>
+                {/if}
+              </div>
             </td>
             {#each visibleRealColumns as col (col.uniqueName)}
               <td
@@ -2562,7 +2747,7 @@
                   onReload={refresh}
                   driver={display?.driver}
                   onHideColumn={() => display.setColumnVisibility(col.uniquePath, false)}
-                  onFilterColumn={display.filterable ? () => domFilterControlsRef.get()[col.uniqueName]?.focus() : null}
+                  onFilterColumn={display.filterable ? () => showFilterRow(col.uniqueName) : null}
                   allowQuickStats={!!display?.baseTableOrView &&
                     !!display?.driver?.databaseEngineTypes?.includes('sql')}
                   allowStructureEdit={allowColumnStructureEdit && !!display?.baseTable}
@@ -2586,10 +2771,10 @@
               </td>
             {/if}
           </tr>
-          {#if display.filterable}
-            <tr>
+          {#if filterRowVisible}
+            <tr class="filter-row" class:appearing={filterRowAppearing}>
               <td
-                class="header-cell"
+                class="header-cell corner-cell"
                 data-row="filter"
                 data-col="header"
                 style={`width:${headerColWidth}px; min-width:${headerColWidth}px; max-width:${headerColWidth}px; position:sticky; left:0; top:0; z-index:5`}
@@ -2609,7 +2794,7 @@
                   class="filter-cell"
                   data-row="filter"
                   data-col={col.colIndex}
-                  style={`width:${col.width}px; min-width:${col.width}px; max-width:${col.width}px${col.stickyLeft != null ? `; position:sticky; left:${col.stickyLeft}px; z-index:3` : ''}`}
+                  style={`width:${col.width}px; min-width:${col.width}px; max-width:${col.width}px${col.stickyLeft != null ? `; position:sticky; left:${col.stickyLeft}px; z-index:5` : ''}`}
                 >
                   <DataFilterControl
                     onGetReference={value => (domFilterControlsRef.get()[col.uniqueName] = value)}
@@ -2640,6 +2825,7 @@
                     onFocusGridHeader={() => {
                       selectColumnHeaderCell(col.uniqueName);
                     }}
+                    onEscapeEmpty={hideFilterRowFromFilter}
                     dataType={col.dataType}
                     filterDisabled={display.isFilterDisabled(col.uniqueName)}
                   />
@@ -2656,7 +2842,7 @@
         </thead>
         <tbody bind:this={domTbody}>
           {#if rowHeight > 0}
-            {#each _.range(firstVisibleRowScrollIndex, Math.min(firstVisibleRowScrollIndex + visibleRowCountUpperBound + 1, grider.rowCount)) as rowIndex (rowIndex)}
+            {#each _.range(firstVisibleRowScrollIndex - underlayRowCount, Math.min(firstVisibleRowScrollIndex + visibleRowCountUpperBound + 1, grider.rowCount)) as rowIndex (rowIndex)}
               <DataGridRow
                 {rowIndex}
                 {grider}
@@ -2727,7 +2913,7 @@
       minimum={0}
       maximum={grider.rowCount - visibleRowCountUpperBound + 2}
       viewportRatio={visibleRowCountUpperBound / grider.rowCount}
-      top={(display?.filterable ? 2 : 1) * rowHeight}
+      top={headerRowCount * rowHeight}
       on:scroll={e => {
         verticalSmoothPending = 0;
         if (!horizontalSmoothPending && smoothRafId) {
@@ -2739,10 +2925,8 @@
         const fraction = fractionalRow - newIndex;
         firstVisibleRowScrollIndex = newIndex;
         rowPixelOffset = fraction * (rowHeight || 24);
-        if (domTbody) {
-          domTbody.style.top = '';
-          domTbody.style.transform = `translateY(-${rowPixelOffset}px)`;
-        }
+        if (domTbody) domTbody.style.top = '';
+        applyTbodyOffset();
       }}
       bind:this={domVerticalScroll}
     />
@@ -2813,6 +2997,21 @@
       />
     {/if}
   </div>
+
+  <CellQuickLook
+    open={quickLookOpen}
+    rowData={isRegularCell(currentCell) ? grider.getRowData(currentCell[0]) : null}
+    column={isRegularCell(currentCell) ? columns[columnSizes.realToModel(currentCell[1])] : null}
+    rowIndex={currentCell?.[0]}
+    colIndex={currentCell?.[1]}
+    editorTypes={getEditorTypes()}
+    gridElement={domContainer}
+    onClose={closeQuickLook}
+    onGridKeyDown={event => {
+      domFocusField?.focus();
+      handleGridKeyDown(event);
+    }}
+  />
 {/if}
 
 <style>
@@ -2843,17 +3042,49 @@
     border-collapse: collapse;
     outline: none;
   }
+  /* Header and filter row: a translucent material that stays on top while rows scroll under it */
+  .header-cell,
+  .filter-cell,
+  .horizontal-scroll-padding-cell,
+  .add-column-cell {
+    background-color: color-mix(in srgb, var(--theme-datagrid-headercell-background) 84%, transparent);
+    /* a small radius: the header is one row tall, and larger radii mirror the edge instead of blurring */
+    -webkit-backdrop-filter: blur(8px) saturate(180%);
+    backdrop-filter: blur(8px) saturate(180%);
+    position: sticky;
+    top: 0;
+    z-index: 4;
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .header-cell,
+    .filter-cell,
+    .horizontal-scroll-padding-cell,
+    .add-column-cell {
+      background-color: var(--theme-datagrid-headercell-background);
+    }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .header-cell,
+    .filter-cell,
+    .horizontal-scroll-padding-cell,
+    .add-column-cell {
+      background-color: var(--theme-datagrid-headercell-background);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+  /* the corner sits over the row numbers, which are solid too */
+  .header-cell.corner-cell {
+    background-color: var(--theme-datagrid-headercell-background);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
   .header-cell {
-    border-top: var(--theme-datagrid-border-horizontal);
     border-bottom: var(--theme-datagrid-border-horizontal);
     border-right: var(--theme-datagrid-border-vertical);
     text-align: left;
     padding: 0;
     margin: 0;
-    background-color: var(--theme-datagrid-headercell-background);
-    position: sticky;
-    top: 0;
-    z-index: 4;
   }
   :global(.data-grid-focused) .active-header-cell {
     background-color: var(--theme-datagrid-focused-cell-background);
@@ -2862,23 +3093,69 @@
     text-align: left;
     margin: 0;
     padding: 0;
-    background-color: var(--theme-datagrid-headercell-background);
-    position: sticky;
-    top: 0;
-    z-index: 4;
+    border-bottom: var(--theme-datagrid-border-horizontal);
   }
+  .filter-row.appearing td {
+    animation: filter-row-in 180ms var(--dim-ease-out);
+  }
+  @keyframes filter-row-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .filter-row.appearing td {
+      animation: none;
+    }
+  }
+  /* the empty header space after the last column */
   .horizontal-scroll-padding-cell {
     padding: 0;
     margin: 0;
     border: 0;
-    background: var(--theme-datagrid-background);
+    border-bottom: var(--theme-datagrid-border-horizontal);
   }
   .add-column-cell {
     width: 36px;
     padding: 0;
-    border-top: var(--theme-datagrid-border-horizontal);
     border-bottom: var(--theme-datagrid-border-horizontal);
-    background: var(--theme-datagrid-headercell-background);
+  }
+
+  .corner-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+  }
+  .filter-row-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--theme-generic-font-grayed);
+    font-size: 13px;
+    cursor: pointer;
+    transition:
+      color var(--dim-transition-fast),
+      background-color var(--dim-transition-fast);
+  }
+  .filter-row-toggle:hover {
+    color: var(--theme-generic-font);
+    background: var(--theme-ui-hover);
+  }
+  .filter-row-toggle.active {
+    color: var(--theme-ui-accent);
+    background: var(--theme-ui-accent-soft);
+  }
+  .filter-row-toggle:focus-visible {
+    outline: 2px solid var(--theme-ui-accent);
+    outline-offset: 1px;
   }
   .focus-field {
     position: absolute;

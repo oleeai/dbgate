@@ -49,4 +49,18 @@
   --dim-ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --dim-transition-fast: 120ms var(--dim-ease-out);
   --dim-transition-base: 200ms var(--dim-ease-out);
+
+  /* press feedback: buttons shrink a little while held */
+  --dim-transition-press: 100ms var(--dim-ease-out);
+  --dim-press-scale: 0.97;
+  --dim-press-scale-large: 0.985;
+  --dim-press-scale-small: 0.92;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dim-press-scale: 1;
+    --dim-press-scale-large: 1;
+    --dim-press-scale-small: 1;
+  }
 }

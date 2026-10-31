@@ -137,6 +137,8 @@ function formatKeyText(keyText) {
   if (!keyText) {
     return keyText;
   }
+  // a menu accelerator takes one shortcut: "F1 | CtrlOrCommand+Shift+P" -> "F1"
+  keyText = keyText.split('|')[0].trim();
   if (os.platform() == 'darwin') {
     return keyText.replace('CtrlOrCommand+', 'Command+');
   }

@@ -27,6 +27,8 @@
   export let onFocusGrid = null;
   export let onFocusGridHeader = null;
   export let onGetReference = null;
+  // Escape in an empty filter (nothing left to clear), e.g. to hide the grid's filter row
+  export let onEscapeEmpty = null;
   export let foreignKey = null;
   export let conid = null;
   export let database = null;
@@ -248,6 +250,10 @@
       applyFilter();
     }
     if (ev.keyCode == keycodes.escape) {
+      if (!value && !filter && onEscapeEmpty) {
+        onEscapeEmpty();
+        return;
+      }
       value = '';
       if (filter) {
         setFilter('');

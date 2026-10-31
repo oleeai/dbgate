@@ -12,7 +12,8 @@ const OPEN_STORAGE_KEY = 'tableInspectorOpen';
 
 export interface InspectorGridApi {
   navigateRow: (rowIndex: number, delta: number) => void;
-  selectRow: (rowIndex: number) => void;
+  // a row was inserted from the inspector: announce it and select it
+  rowInserted: (rowIndex: number) => void;
   focus: () => void;
   refresh: () => void;
 }
@@ -257,7 +258,7 @@ export function createTableInspector({ conid, database, schemaName, pureName }):
     finishInsert(rowIndex) {
       const value = get(state);
       state.update(x => ({ ...x, insert: false }));
-      if (_.isNumber(rowIndex)) value.grid?.api.selectRow(rowIndex);
+      if (_.isNumber(rowIndex)) value.grid?.api.rowInserted(rowIndex);
       finishTask();
     },
 

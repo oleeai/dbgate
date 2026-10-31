@@ -13,9 +13,12 @@
   function handleClick(e) {
     const rect = e.detail.target.getBoundingClientRect();
     const left = rect.left;
-    const top = rect.top;
-    // const top = rect.bottom;
-    currentDropDownMenu.set({ left, bottom: window.innerHeight - top, items: menu });
+    // opens away from the window edge the toolbar sits at, so the menu grows out of the button
+    if (rect.top < window.innerHeight / 2) {
+      currentDropDownMenu.set({ left, top: rect.bottom, items: menu });
+    } else {
+      currentDropDownMenu.set({ left, bottom: window.innerHeight - rect.top, items: menu });
+    }
   }
 </script>
 

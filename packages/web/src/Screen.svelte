@@ -118,7 +118,12 @@
     <DragAndDropFileTarget />
   {/if}
   <div class="snackbar-container">
-    {#each $openedSnackbars as snackbar (snackbar.id)}
+    {#each $openedSnackbars.filter(x => x.placement != 'center') as snackbar (snackbar.id)}
+      <Snackbar {...snackbar} />
+    {/each}
+  </div>
+  <div class="toast-container">
+    {#each $openedSnackbars.filter(x => x.placement == 'center') as snackbar (snackbar.id)}
       <Snackbar {...snackbar} />
     {/each}
   </div>
@@ -216,6 +221,19 @@
     position: fixed;
     right: 0;
     bottom: var(--dim-statusbar-height);
+  }
+
+  /* undo toasts float at the bottom center of the content, clear of the grid's paging footer */
+  .toast-container {
+    z-index: 1000;
+    position: fixed;
+    left: var(--dim-content-left);
+    right: var(--dim-content-right);
+    bottom: calc(var(--dim-statusbar-height) + 52px);
+    display: grid;
+    justify-items: center;
+    align-items: end;
+    pointer-events: none;
   }
 
   .titlebar {

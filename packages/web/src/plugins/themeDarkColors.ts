@@ -236,6 +236,10 @@ export const themeDarkColors = {
   '--theme-toolstrip-button-border-hover': '1px solid var(--theme-ui-border-strong)',
   '--theme-toolstrip-button-border-disabled': '1px solid var(--theme-ui-border-subtle)',
   '--theme-toolstrip-button-split-separator-border': '1px solid var(--theme-ui-border-strong)',
+  '--theme-segmented-background': 'color-mix(in srgb, #000 24%, transparent)',
+  '--theme-segmented-thumb': 'oklch(0.3 0.014 262)',
+  '--theme-segmented-thumb-shadow':
+    '0 0 0 0.5px color-mix(in srgb, #fff 8%, transparent), 0 1px 2px color-mix(in srgb, #000 40%, transparent)',
   '--theme-designer-background': 'var(--theme-ui-surface)',
   '--theme-designer-item-background': 'var(--theme-ui-bg)',
   '--theme-designer-selection-marker': 'var(--theme-ui-accent)',

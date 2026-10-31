@@ -11,6 +11,7 @@
     parseFilterTerms,
   } from '../utility/gridFilterBuilder';
   import { _t } from '../translations';
+  import { popoverIn, popoverOut } from '../utility/motion';
 
   // [{ uniqueName, columnName, dataType }] of the table
   export let columns = [];
@@ -162,6 +163,11 @@
       ? `bottom:${window.innerHeight - fieldRect.top + 6}px;max-height:${Math.min(380, spaceAbove)}px`
       : `top:${fieldRect.bottom + 6}px;max-height:${Math.min(380, spaceBelow)}px`;
     popoverStyle = `left:${left}px;${size};${vertical}`;
+  }
+
+  // switching from one popover to the next swaps them at once; only closing the last one animates
+  function popoverStaysOpen() {
+    return !!menu;
   }
 
   function scrollHighlightedIntoView() {
@@ -553,6 +559,8 @@
     class:above={popoverAbove}
     style={popoverStyle}
     bind:this={domPopover}
+    in:popoverIn={{ anchor: domQuery }}
+    out:popoverOut={{ instant: popoverStaysOpen }}
     on:mousedown|preventDefault
     data-testid="ToolStripFilterBuilder_columnMenu"
   >
@@ -592,6 +600,8 @@
     class:above={popoverAbove}
     style={popoverStyle}
     bind:this={domPopover}
+    in:popoverIn={{ anchor: domDraft }}
+    out:popoverOut={{ instant: popoverStaysOpen }}
     on:mousedown|preventDefault
     data-testid="ToolStripFilterBuilder_operatorMenu"
   >
@@ -622,7 +632,15 @@
 
 {#if menu == 'value' && draft?.operator}
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="popover hint" class:above={popoverAbove} style={popoverStyle} bind:this={domPopover} on:mousedown|preventDefault>
+  <div
+    class="popover hint"
+    class:above={popoverAbove}
+    style={popoverStyle}
+    bind:this={domPopover}
+    in:popoverIn={{ anchor: domDraft }}
+    out:popoverOut={{ instant: popoverStaysOpen }}
+    on:mousedown|preventDefault
+  >
     {#if draftInvalid}
       <div class="hint-row error">
         <FontIcon icon="icon warning" />
@@ -877,38 +895,10 @@
     border-radius: 10px;
     box-shadow: var(--theme-popup-shadow);
     overflow: hidden;
-    transform-origin: top left;
-    animation: filter-builder-in 140ms var(--dim-ease-spring);
   }
   .popover.hint {
     max-width: 360px;
     padding: 6px 0;
-  }
-
-  .popover.above {
-    transform-origin: bottom left;
-    animation-name: filter-builder-in-above;
-  }
-
-  @keyframes filter-builder-in {
-    from {
-      opacity: 0;
-      transform: translateY(-3px) scale(0.98);
-    }
-  }
-
-  @keyframes filter-builder-in-above {
-    from {
-      opacity: 0;
-      transform: translateY(3px) scale(0.98);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .popover,
-    .popover.above {
-      animation: none;
-    }
   }
 
   @media (prefers-reduced-transparency: reduce) {
