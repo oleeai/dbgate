@@ -153,6 +153,7 @@ async function getSshTunnel(connection) {
       // error is cached only for the backoff interval, which doubles with each consecutive failure
       const failures = (lastError?.failures || 0) + 1;
       sshTunnelErrorCache[tunnelCacheKey] = {
+        conid: connection._id,
         message: err.message,
         failures,
         retryAt: Date.now() + Math.min(ERROR_BACKOFF_INITIAL_MS * 2 ** (failures - 1), ERROR_BACKOFF_MAX_MS),
@@ -165,6 +166,14 @@ async function getSshTunnel(connection) {
   });
 }
 
+// "Try again" from the user must really reconnect, not return the error cached for the backoff interval
+function clearSshTunnelErrors(conid) {
+  for (const [key, entry] of Object.entries(sshTunnelErrorCache)) {
+    if (entry.conid == conid) delete sshTunnelErrorCache[key];
+  }
+}
+
 module.exports = {
   getSshTunnel,
+  clearSshTunnelErrors,
 };

@@ -28,7 +28,7 @@ jest.mock('dbgate-tools', () => ({
 }));
 jest.mock('../controllers/config', () => ({ getSettings: jest.fn(async () => ({})) }));
 
-const connection = { sshHost: '127.0.0.1', sshPort: 1, server: 'db', port: 5432 };
+const connection = { _id: 'conn1', sshHost: '127.0.0.1', sshPort: 1, server: 'db', port: 5432 };
 
 function loadSshTunnel() {
   let module;
@@ -102,4 +102,20 @@ test('a successful tunnel is cached and not removed by the exit of an earlier fa
   expect(await getSshTunnel(connection)).toBe(tunnel);
   expect(mockForked).toHaveLength(2);
   expect(mockForked[1].kill).not.toHaveBeenCalled();
+});
+
+test('clearing the errors of a connection makes the next call reconnect at once', async () => {
+  const { getSshTunnel, clearSshTunnelErrors } = loadSshTunnel();
+  await callGetSshTunnel(getSshTunnel);
+  expect(mockForked).toHaveLength(1);
+
+  // errors of other connections are kept
+  clearSshTunnelErrors('other');
+  expect((await getSshTunnel(connection)).state).toBe('error');
+  expect(mockForked).toHaveLength(1);
+
+  // within the backoff interval, but the user asked to try again
+  clearSshTunnelErrors('conn1');
+  await callGetSshTunnel(getSshTunnel);
+  expect(mockForked).toHaveLength(2);
 });
