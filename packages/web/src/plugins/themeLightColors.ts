@@ -195,6 +195,10 @@ export const themeLightColors = {
   '--theme-toolstrip-button-border-hover': '1px solid var(--theme-ui-border-strong)',
   '--theme-toolstrip-button-border-disabled': '1px solid var(--theme-ui-border-subtle)',
   '--theme-toolstrip-button-split-separator-border': '1px solid var(--theme-ui-border)',
+  '--theme-segmented-background': 'var(--theme-ui-hover)',
+  '--theme-segmented-thumb': 'var(--theme-ui-bg)',
+  '--theme-segmented-thumb-shadow':
+    '0 0 0 0.5px color-mix(in srgb, #000 10%, transparent), 0 1px 2px color-mix(in srgb, #000 12%, transparent)',
   '--theme-designer-background': 'var(--theme-ui-surface)',
   '--theme-designer-item-background': 'var(--theme-ui-bg)',
   '--theme-designer-selection-marker': 'var(--theme-ui-accent-strong)',

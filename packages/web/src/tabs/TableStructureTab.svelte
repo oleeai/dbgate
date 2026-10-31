@@ -42,7 +42,7 @@
     getAlterTableScript,
   } from 'dbgate-tools';
 
-  import _ from 'lodash';  import { extensions, lastUsedDefaultActions } from '../stores';
+  import _ from 'lodash';  import { extensions } from '../stores';
   import useEditorData from '../query/useEditorData';
   import TableEditor from '../tableeditor/TableEditor.svelte';
   import createActivator from '../utility/createActivator';
@@ -52,14 +52,12 @@
   import ConfirmSqlModal from '../modals/ConfirmSqlModal.svelte';
   import ErrorMessageModal from '../modals/ErrorMessageModal.svelte';
   import { showSnackbarSuccess } from '../utility/snackbar';
-  import openNewTab from '../utility/openNewTab';
   import { apiCall } from '../utility/api';
   import ToolStripContainer from '../buttons/ToolStripContainer.svelte';
   import ToolStripCommandButton from '../buttons/ToolStripCommandButton.svelte';
-  import ToolStripButton from '../buttons/ToolStripButton.svelte';
+  import TableViewSwitch from '../buttons/TableViewSwitch.svelte';
   import hasPermission from '../utility/hasPermission';
   import { changeTab, markTabSaved, markTabUnsaved } from '../utility/common';
-  import { getBoolSettingsValue } from '../settings/settingsTools';
   import { _t } from '../translations';
 
   export let tabid;
@@ -188,61 +186,18 @@
       : null}
   />
   <svelte:fragment slot="toolstrip">
-    <ToolStripButton
-      icon={'icon table'}
-      iconAfter="icon arrow-link"
-      on:click={() => {
-        if (tabPreviewMode && getBoolSettingsValue('defaultAction.useLastUsedAction', true)) {
-          lastUsedDefaultActions.update(actions => ({
-            ...actions,
-            [objectTypeField]: 'openTable',
-          }));
-        }
-
-        openNewTab({
-          title: pureName,
-          icon: objectTypeField == 'tables' ? 'img table' : 'img view',
-          tabComponent: objectTypeField == 'tables' ? 'TableDataTab' : 'ViewDataTab',
-          tabPreviewMode: true,
-          props: {
-            schemaName,
-            pureName,
-            conid,
-            database,
-            objectTypeField,
-            defaultActionId: 'openTable',
-          },
-        });
-      }}>{_t('common.data', { defaultMessage: 'Data' })}</ToolStripButton
-    >
-
-    <ToolStripButton
-      icon="img sql-file"
-      iconAfter="icon arrow-link"
-      on:click={() => {
-        if (tabPreviewMode && getBoolSettingsValue('defaultAction.useLastUsedAction', true)) {
-          lastUsedDefaultActions.update(actions => ({
-            ...actions,
-            [objectTypeField]: 'showSql',
-          }));
-        }
-
-        openNewTab({
-          title: pureName,
-          icon: 'img sql-file',
-          tabComponent: 'SqlObjectTab',
-          tabPreviewMode: true,
-          props: {
-            schemaName,
-            pureName,
-            conid,
-            database,
-            objectTypeField,
-            defaultActionId: 'showSql',
-          },
-        });
-      }}>SQL</ToolStripButton
-    >
+    {#if pureName}
+      <TableViewSwitch
+        active="structure"
+        {conid}
+        {database}
+        {schemaName}
+        {pureName}
+        {objectTypeField}
+        {tabPreviewMode}
+      />
+    {/if}
+    <div class="toolstrip-spacer" />
 
     <ToolStripCommandButton
       command="tableStructure.save"
