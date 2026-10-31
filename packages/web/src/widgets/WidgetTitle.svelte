@@ -5,6 +5,9 @@
   export let onClose = null;
   export let altsidebar = false;
   export let collapsed = false;
+  // folds the whole side panel away (not just this section)
+  export let onFold = null;
+  export let foldTitle = null;
 </script>
 
 <div on:click class:clickable {...$$restProps} class="wrapper" class:altsidebar>
@@ -14,6 +17,18 @@
     {/if}
     <slot />
   </div>
+  {#if onFold}
+    <button
+      type="button"
+      class="fold"
+      title={foldTitle}
+      aria-label={foldTitle}
+      on:click|stopPropagation={onFold}
+      data-testid="WidgetTitle_fold"
+    >
+      <FontIcon icon="icon dock-left" />
+    </button>
+  {/if}
   {#if onClose}
     <div class="close" on:click={onClose}>
       <FontIcon icon="icon close" />
@@ -52,6 +67,36 @@
 
   .close {
     cursor: pointer;
+  }
+
+  .fold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-right: -6px;
+    padding: 0;
+    border: none;
+    border-radius: 5px;
+    background: none;
+    color: var(--theme-generic-font-grayed);
+    font-size: 14px;
+    cursor: pointer;
+    transition:
+      background-color 80ms ease,
+      color 80ms ease;
+  }
+  .fold:hover {
+    background: var(--theme-ui-hover);
+    color: var(--theme-generic-font);
+  }
+  .fold:active {
+    transform: scale(0.92);
+  }
+  .fold:focus-visible {
+    outline: none;
+    box-shadow: var(--theme-input-focus-ring);
   }
   .close:hover {
     color: var(--theme-generic-font-hover);
