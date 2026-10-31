@@ -7,7 +7,8 @@
   import ConnectionSwitcherDatabases from './ConnectionSwitcherDatabases.svelte';
   import { openConnection } from '../appobj/ConnectionAppObject.svelte';
   import { currentDatabase, openedConnections } from '../stores';
-  import { useConnectionList } from '../utility/metadataLoaders';
+  import { useConnectionList, useDatabaseStatus, useServerStatus } from '../utility/metadataLoaders';
+  import { reopenConnection } from '../utility/connectionProblem';
   import { switchCurrentDatabase } from '../utility/common';
   import { getLocalStorage } from '../utility/storageCache';
   import runCommand from '../commands/runCommand';
@@ -23,11 +24,18 @@
   let domSearch;
 
   const connections = useConnectionList();
+  const serverStatus = useServerStatus();
 
   $: currentConnection = $currentDatabase?.connection;
   $: currentConid = currentConnection?._id;
   $: currentDbName = $currentDatabase?.name ? extractDbNameFromComposite($currentDatabase.name) : null;
   $: currentSchema = $currentDatabase?.name?.includes('::') ? $currentDatabase.name.split('::')[1] : null;
+
+  // a connection that failed to open (eg. its server is switched off) is marked offline
+  $: currentDatabaseStatus = useDatabaseStatus({ conid: currentConid, database: $currentDatabase?.name });
+  $: currentOffline =
+    !!currentConnection &&
+    ($currentDatabaseStatus?.name == 'error' || isServerOffline(currentConnection, $serverStatus, $openedConnections));
 
   $: title = currentConnection
     ? getConnectionLabel(currentConnection, { allowExplicitDatabase: false })
@@ -45,6 +53,14 @@
   function engineName(connection) {
     const match = (connection?.engine || '').match(/^([^@]*)@/);
     return match ? match[1] : connection?.engine;
+  }
+
+  function isServerOffline(connection, statusMap, opened) {
+    return opened.includes(connection._id) && statusMap?.[connection._id]?.name == 'error';
+  }
+
+  function isOffline(connection, statusMap, opened, currentOffline) {
+    return (connection._id == currentConid && currentOffline) || isServerOffline(connection, statusMap, opened);
   }
 
   function cachedDatabaseNames(connection) {
@@ -70,6 +86,9 @@
   }
 
   function handlePickConnection(connection) {
+    if (isOffline(connection, $serverStatus, $openedConnections, currentOffline)) {
+      reopenConnection(connection._id, connection.singleDatabase ? connection.defaultDatabase : null, connection);
+    }
     openConnection(connection);
     if (connection.singleDatabase || connection.defaultDatabase) close();
   }
@@ -121,11 +140,18 @@
       {:else}
         <FontIcon icon="icon database-outline" />
       {/if}
+      {#if currentOffline}
+        <span class="offline-dot" data-testid="ConnectionSwitcher_offlineDot" />
+      {/if}
     </span>
     <span class="text">
       <span class="title">{title}</span>
       {#if currentConnection}
-        <span class="subtitle">{subtitle}</span>
+        <span class="subtitle"
+          >{#if currentOffline}<span class="offline-label"
+              >{_t('connectionSwitcher.offline', { defaultMessage: 'Offline' })}</span
+            > · {/if}{subtitle}</span
+        >
       {/if}
     </span>
     <span class="chevron"><FontIcon icon="icon unfold" /></span>
@@ -147,14 +173,24 @@
         <div class="section-label">{_t('common.connections', { defaultMessage: 'Connections' })}</div>
         {#each filteredConnections as connection (connection._id)}
           {@const isCurrent = connection._id == currentConid}
+          {@const offline = isOffline(connection, $serverStatus, $openedConnections, currentOffline)}
           <button
             class="row"
             class:active={isCurrent && connection.singleDatabase}
+            title={offline
+              ? _t('connectionSwitcher.offlineHint', { defaultMessage: "Can't reach this server. Click to try again." })
+              : null}
             on:click={() => handlePickConnection(connection)}
           >
             <span class="avatar small" class:current={isCurrent}><EngineLogo {connection} size={14} /></span>
             <span class="row-label">{getConnectionLabel(connection)}</span>
-            <span class="row-meta">{engineName(connection)}</span>
+            {#if offline}
+              <span class="row-meta offline" data-testid="ConnectionSwitcher_offlineLabel">
+                <span class="offline-dot inline" />{_t('connectionSwitcher.offline', { defaultMessage: 'Offline' })}
+              </span>
+            {:else}
+              <span class="row-meta">{engineName(connection)}</span>
+            {/if}
             {#if isCurrent && connection.singleDatabase}
               <span class="check"><FontIcon icon="icon check" /></span>
             {/if}
@@ -430,5 +466,45 @@
   .footer {
     padding: 4px;
     border-top: var(--theme-modal-border);
+  }
+
+  .avatar {
+    position: relative;
+  }
+  .offline-dot {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--theme-generic-font-error);
+    box-shadow: 0 0 0 2px var(--theme-sidebar-background);
+    animation: offline-dot-in 240ms var(--dim-ease-spring);
+  }
+  .offline-dot.inline {
+    position: static;
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 5px;
+    box-shadow: none;
+    vertical-align: 1px;
+  }
+  @keyframes offline-dot-in {
+    from {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+  }
+  .offline-label,
+  .row-meta.offline {
+    color: var(--theme-ui-text-secondary);
+    font-weight: 500;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .offline-dot {
+      animation: none;
+    }
   }
 </style>

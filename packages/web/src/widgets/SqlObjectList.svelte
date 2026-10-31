@@ -30,7 +30,8 @@
   import SubTableColumnList from '../appobj/SubTableColumnList.svelte';
   import { chevronExpandIcon } from '../icons/expandIcons';
   import ErrorInfo from '../elements/ErrorInfo.svelte';
-  import LoadingInfo from '../elements/LoadingInfo.svelte';
+  import SkeletonList from '../elements/SkeletonList.svelte';
+  import ConnectionOfflineCard from '../elements/ConnectionOfflineCard.svelte';
   import { getDatabasStatusMenu, getObjectTypeFieldLabel } from '../utility/common';
   import DropDownButton from '../buttons/DropDownButton.svelte';
   import FontIcon from '../icons/FontIcon.svelte';
@@ -261,6 +262,10 @@
   $: isLoadingStructure =
     $status && ($status.name == 'pending' || $status.name == 'checkStructure' || $status.name == 'loadStructure');
 
+  // the connection failed: a card instead of the list, kept while "Try again" reconnects (status pending)
+  let databaseOffline = false;
+  $: databaseOffline = $status?.name == 'error' || (databaseOffline && $status?.name == 'pending');
+
   function getAppObjectGroup(data) {
     if (data.objectTypeField == 'tables') {
       if (data.pureName.match(databaseObjectAppObject.TABLE_BACKUP_REGEX)) {
@@ -271,16 +276,15 @@
   }
 </script>
 
-{#if $status && $status.name == 'error'}
+{#if databaseOffline}
   {#if differentFocusedDb}
     <FocusedConnectionInfoWidget {conid} {database} connection={$connection} />
   {/if}
 
   <WidgetsInnerContainer hideContent={differentFocusedDb}>
-    <ErrorInfo message={$status.message} icon="img error" />
-    <InlineButton on:click={handleFullRefreshDatabase}
-      >{_t('common.refresh', { defaultMessage: 'Refresh' })}</InlineButton
-    >
+    <div class="offline-card">
+      <ConnectionOfflineCard compact {conid} {database} message={$status?.message} busy={$status?.name == 'pending'} />
+    </div>
   </WidgetsInnerContainer>
 {:else if objectList.length == 0 && $status && !isLoadingStructure && $objects}
   <div class="toolbar">
@@ -409,9 +413,11 @@
     data-testid="SqlObjectList_container"
   >
     {#if (isLoadingStructure && $objects) || !$objects}
-      <LoadingInfo
+      <SkeletonList
         message={$status?.feedback?.analysingMessage ||
-          _t('sqlObject.loadingStructure', { defaultMessage: 'Loading database structure' })}
+          ($status?.name == 'pending'
+            ? _t('sqlObject.connecting', { defaultMessage: 'Connecting…' })
+            : _t('sqlObject.loadingStructure', { defaultMessage: 'Loading database structure' }))}
       />
     {:else}
       <AppObjectListHandler
@@ -478,6 +484,10 @@
 {/if}
 
 <style>
+  .offline-card {
+    padding: 10px;
+  }
+
   .toolbar {
     display: flex;
     flex-direction: column;

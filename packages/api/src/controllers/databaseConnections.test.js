@@ -40,7 +40,7 @@ jest.mock('../utility/socket', () => ({
 jest.mock('../utility/auditlog', () => ({ sendToAuditLog: jest.fn() }));
 jest.mock('../utility/processComm', () => ({ handleProcessCommunication: jest.fn(() => false) }));
 jest.mock('../utility/pipeForkLogs', () => jest.fn());
-jest.mock('../utility/sshTunnel', () => ({ getSshTunnel: jest.fn() }));
+jest.mock('../utility/sshTunnel', () => ({ getSshTunnel: jest.fn(), clearSshTunnelErrors: jest.fn() }));
 jest.mock('../utility/authProxy', () => ({}));
 jest.mock('../utility/connectUtility', () => ({ extractConnectionSslParams: jest.fn() }));
 jest.mock('../utility/crypting', () => ({ decryptConnection: jest.fn(x => x) }));
@@ -395,4 +395,50 @@ test('the AI helper and metadata routes are not exposed', () => {
   }
   const metadata = require('./metadata');
   expect(Object.keys(metadata).filter(x => x.endsWith('_meta'))).toEqual([]);
+});
+
+describe('reconnecting after a failed connection', () => {
+  const { clearSshTunnelErrors } = require('../utility/sshTunnel');
+
+  // the connection process reported an error (eg. the SSH handshake timed out) and exited
+  function failConnection(conid, database) {
+    databaseConnections.opened.push({
+      conid,
+      database,
+      subprocess: { send: jest.fn(), kill: jest.fn() },
+      status: { name: 'error', message: 'Timed out while waiting for handshake' },
+    });
+    databaseConnections.close(conid, database, false);
+  }
+
+  test('pings do not reopen a connection that has just failed', async () => {
+    failConnection('conid-ping', 'db1');
+    const res = await databaseConnections.ping({ conid: 'conid-ping', database: 'db1' }, req);
+    expect(databaseConnections.ensureOpened).not.toHaveBeenCalled();
+    expect(res.connectionStatus).toMatchObject({ name: 'error', message: 'Timed out while waiting for handshake' });
+  });
+
+  test('refresh ("Try again") reopens it at once, without the cached SSH tunnel error', async () => {
+    failConnection('conid-retry', 'db1');
+    await databaseConnections.refresh({ conid: 'conid-retry', database: 'db1' }, req);
+    expect(clearSshTunnelErrors).toHaveBeenCalledWith('conid-retry');
+    expect(databaseConnections.ensureOpened).toHaveBeenCalledWith('conid-retry', 'db1');
+
+    // and the pings are back to normal
+    databaseConnections.ensureOpened.mockClear();
+    await databaseConnections.ping({ conid: 'conid-retry', database: 'db1' }, req);
+    expect(databaseConnections.ensureOpened).toHaveBeenCalledWith('conid-retry', 'db1');
+  });
+
+  test('a connection closed without an error is reopened by the next ping as before', async () => {
+    databaseConnections.opened.push({
+      conid: 'conid-ok',
+      database: 'db1',
+      subprocess: { send: jest.fn(), kill: jest.fn() },
+      status: { name: 'ok' },
+    });
+    databaseConnections.close('conid-ok', 'db1', false);
+    await databaseConnections.ping({ conid: 'conid-ok', database: 'db1' }, req);
+    expect(databaseConnections.ensureOpened).toHaveBeenCalledWith('conid-ok', 'db1');
+  });
 });

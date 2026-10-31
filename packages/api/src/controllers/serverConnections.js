@@ -21,8 +21,12 @@ const { MissingCredentialsError } = require('../utility/exceptions');
 const pipeForkLogs = require('../utility/pipeForkLogs');
 const { getLogger, extractErrorLogData } = require('dbgate-tools');
 const { sendToAuditLog } = require('../utility/auditlog');
+const { clearSshTunnelErrors } = require('../utility/sshTunnel');
+const { createConnectRetryBackoff } = require('../utility/connectRetryBackoff');
 
 const logger = getLogger('serverConnection');
+
+const connectRetryBackoff = createConnectRetryBackoff();
 
 const SERVER_CHAT_SUPPORTED_ENGINES = new Set([
   'mssql@dbgate-plugin-mssql',
@@ -46,6 +50,8 @@ module.exports = {
   handle_version(conid, { version }) {
     const existing = this.opened.find(x => x.conid == conid);
     if (!existing) return;
+    // the version is sent once the connection is open
+    connectRetryBackoff.clear(conid);
     existing.version = version;
     socket.emitChanged(`server-version-changed`, { conid });
   },
@@ -146,6 +152,10 @@ module.exports = {
         }
       }
       this.opened = this.opened.filter(x => x.conid != conid);
+      // the connection process ended on its own after an error (eg. it could not connect)
+      if (!kill && existing.status?.name == 'error') {
+        connectRetryBackoff.recordFailure(conid);
+      }
       this.closed[conid] = {
         ...existing.status,
         name: 'error',
@@ -411,6 +421,10 @@ module.exports = {
           return Promise.resolve();
         }
         this.lastPinged[conid] = new Date().getTime();
+        // a connection that has just failed to open is not reopened by every ping
+        if (connectRetryBackoff.isWaiting(conid) && !this.opened.find(x => x.conid == conid)) {
+          return Promise.resolve();
+        }
         try {
           const opened = await this.ensureOpened(conid);
           if (!opened) {
@@ -435,6 +449,8 @@ module.exports = {
   refresh_meta: true,
   async refresh({ conid, keepOpen }, req) {
     await testConnectionPermission(conid, req);
+    connectRetryBackoff.clear(conid);
+    clearSshTunnelErrors(conid);
     if (!keepOpen) this.close(conid);
 
     await this.ensureOpened(conid);

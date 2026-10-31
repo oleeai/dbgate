@@ -60,7 +60,8 @@ const {
   isValidRunId,
 } = require('../utility/security');
 const { checkJsonScriptAccess } = require('../utility/jsonScriptAccess');
-const { getSshTunnel } = require('../utility/sshTunnel');
+const { getSshTunnel, clearSshTunnelErrors } = require('../utility/sshTunnel');
+const { createConnectRetryBackoff } = require('../utility/connectRetryBackoff');
 const sessions = require('./sessions');
 const jsldata = require('./jsldata');
 const { sendToAuditLog } = require('../utility/auditlog');
@@ -71,6 +72,8 @@ const {
 } = require('../utility/connectUtility');
 
 const logger = getLogger('databaseConnections');
+
+const connectRetryBackoff = createConnectRetryBackoff();
 
 function getRestoreUploadPath(inputFile, inputUploadName) {
   if (
@@ -127,6 +130,8 @@ module.exports = {
   handle_version(conid, database, { version }) {
     const existing = this.opened.find(x => x.conid == conid && x.database == database);
     if (!existing) return;
+    // the version is sent once the connection is open
+    connectRetryBackoff.clear(`${conid}/${database}`);
     existing.serverVersion = version;
     socket.emitChanged(`database-server-version-changed`, { conid, database });
   },
@@ -712,6 +717,13 @@ module.exports = {
         };
       }
     } else {
+      // a connection that has just failed to open is not reopened by every ping
+      if (connectRetryBackoff.isWaiting(`${conid}/${database}`)) {
+        return {
+          status: 'ok',
+          connectionStatus: this.closed[`${conid}/${database}`]?.status ?? null,
+        };
+      }
       // @ts-ignore
       existing = await this.ensureOpened(conid, database);
     }
@@ -747,9 +759,13 @@ module.exports = {
   refresh_meta: true,
   async refresh({ conid, database, keepOpen }, req) {
     await testConnectionPermission(conid, req);
+    connectRetryBackoff.clear(`${conid}/${database}`);
+    clearSshTunnelErrors(conid);
     if (!keepOpen) this.close(conid, database);
 
     await this.ensureOpened(conid, database);
+    // a connection that had failed is connecting again; the UI shows that instead of the old error
+    socket.emitChanged(`database-status-changed`, { conid, database });
     return { status: 'ok' };
   },
 
@@ -780,6 +796,10 @@ module.exports = {
         }
       }
       this.opened = this.opened.filter(x => x.conid != conid || x.database != database);
+      // the connection process ended on its own after an error (eg. it could not connect)
+      if (!kill && existing.status?.name == 'error') {
+        connectRetryBackoff.recordFailure(`${conid}/${database}`);
+      }
       this.closed[`${conid}/${database}`] = {
         status: {
           ...existing.status,

@@ -40,6 +40,15 @@ const debug = require('debug');
 //   toHost?: string;
 // }
 
+// How long to wait for the SSH handshake before giving up. ssh2 waits 20 s by default, so a host that is
+// switched off kept every connection hanging that long; a healthy server answers in well under a second.
+const DEFAULT_READY_TIMEOUT_MS = 10000;
+
+function getReadyTimeout() {
+  const value = parseInt(process.env.SSH_READY_TIMEOUT_MS, 10);
+  return value > 0 ? value : DEFAULT_READY_TIMEOUT_MS;
+}
+
 class SSHConnection {
   constructor(options) {
     this.options = options;
@@ -156,6 +165,7 @@ class SSHConnection {
         username: this.options.username,
         password: this.options.password,
         privateKey: this.options.privateKey,
+        readyTimeout: getReadyTimeout(),
       };
       if (this.options.agentForward) {
         options['agentForward'] = true;
@@ -248,4 +258,4 @@ class SSHConnection {
   }
 }
 
-module.exports = { SSHConnection };
+module.exports = { SSHConnection, getReadyTimeout };

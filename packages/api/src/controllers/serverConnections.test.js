@@ -175,3 +175,45 @@ describe('server chat controller', () => {
     expect(resolveServerChatDatabaseName(['Customer'], 'Missing')).toBeNull();
   });
 });
+
+describe('reconnecting after a failed server connection', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.assign(serverConnections, originalMethods);
+    serverConnections.lastPinged = {};
+    testConnectionPermission.mockResolvedValue();
+    serverConnections.ensureOpened = jest.fn(async () => null);
+  });
+
+  afterAll(() => {
+    Object.assign(serverConnections, originalMethods);
+  });
+
+  // the connection process reported an error (eg. the SSH handshake timed out) and exited
+  function failConnection(conid) {
+    serverConnections.opened.push({
+      conid,
+      subprocess: { send: jest.fn(), kill: jest.fn() },
+      status: { name: 'error', message: 'Timed out while waiting for handshake' },
+    });
+    serverConnections.close(conid, false);
+  }
+
+  test('pings do not reopen a connection that has just failed', async () => {
+    failConnection('con-ping');
+    await serverConnections.ping({ conidArray: ['con-ping'] });
+    expect(serverConnections.ensureOpened).not.toHaveBeenCalled();
+    expect(serverConnections.closed['con-ping']).toMatchObject({ name: 'error' });
+  });
+
+  test('refresh ("Try again") reopens it at once', async () => {
+    failConnection('con-retry');
+    await serverConnections.refresh({ conid: 'con-retry' }, {});
+    expect(serverConnections.ensureOpened).toHaveBeenCalledWith('con-retry');
+
+    serverConnections.ensureOpened.mockClear();
+    serverConnections.lastPinged = {};
+    await serverConnections.ping({ conidArray: ['con-retry'] });
+    expect(serverConnections.ensureOpened).toHaveBeenCalledWith('con-retry');
+  });
+});
