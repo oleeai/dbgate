@@ -123,6 +123,8 @@
 
   export let onClose;
   export let selection;
+  // the table inspector shows its own header
+  export let showTitle = true;
 
   let selectedFormatType = 'autodetect';
   const usageTabId = getContext('tabid');
@@ -135,7 +137,9 @@
 </script>
 
 <div class="wrapper">
-  <WidgetTitle {onClose}>{_t('cellDataWidget.title', { defaultMessage: 'Cell data view' })}</WidgetTitle>
+  {#if showTitle}
+    <WidgetTitle {onClose}>{_t('cellDataWidget.title', { defaultMessage: 'Cell data view' })}</WidgetTitle>
+  {/if}
   <div class="main">
     <div class="toolbar">
       Format:<span>&nbsp;</span>

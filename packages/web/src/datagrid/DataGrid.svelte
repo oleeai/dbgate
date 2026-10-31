@@ -89,6 +89,7 @@
   import FontIcon from '../icons/FontIcon.svelte';
   import CellDataWidget from '../widgets/CellDataWidget.svelte';
   import { useSettings } from '../utility/metadataLoaders';
+  import type { TableInspector } from '../inspector/tableInspector';
 
   export let config;
   export let setConfig;
@@ -111,6 +112,7 @@
   export let setLoadedRows = null;
   export let hideGridLeftColumn = false;
   export let cellDataViewVisible = false;
+  export let allowInspector = false;
 
   export let onPublishedCellsChanged;
 
@@ -120,7 +122,6 @@
   export const activator = createActivator('DataGrid', false);
 
   let domColumnManager;
-  let rowSidePanelOpen = false;
 
   const selectedMacro = writable(null);
   setContext('selectedMacro', selectedMacro);
@@ -136,6 +137,10 @@
 
   $: isFormView = !!config?.isFormView;
   $: isJsonView = !!config?.isJsonView;
+
+  // table data tabs show the cell data view as the Value section of the inspector, the one panel on the right
+  const inspector = getContext('tableInspector') as TableInspector;
+  $: useInspector = allowInspector && !!inspector && !isDetailView;
 
   const handleExecuteMacro = () => {
     onRunMacro($selectedMacro, extractMacroValuesForMacro($macroValues, $selectedMacro), publishedCells);
@@ -190,7 +195,8 @@
   }
 
   export function toggleCellDataView() {
-    if (cellDataViewVisible) cellDataViewVisible = false;
+    if (useInspector) inspector.toggleValue();
+    else if (cellDataViewVisible) cellDataViewVisible = false;
     else showCellDataView(getCommandSource());
   }
 
@@ -327,19 +333,19 @@
                     if (onPublishedCellsChanged) {
                       onPublishedCellsChanged(value);
                     }
+                    if (useInspector) inspector.setCells(value);
                     if (
                       value[0]?.isSelectedFullRow &&
                       !isFormView &&
-                      !rowSidePanelOpen &&
                       !$settings?.['dataGrid.disableCellDataViewAutoOpen']
                     ) {
-                      showCellDataView('row_header');
+                      // a click on a row number shows the row: in the inspector for tables, else in the cell data view
+                      if (useInspector) {
+                        if (!inspector.getView().open) inspector.editRow({ focus: false });
+                      } else {
+                        showCellDataView('row_header');
+                      }
                     }
-                  }}
-                  onRowSidePanelChanged={isOpen => {
-                    // the row sheet shows the whole row, the cell view next to it would only repeat it
-                    rowSidePanelOpen = isOpen;
-                    if (isOpen) cellDataViewVisible = false;
                   }}
                   onChangeSelectedColumns={cols => {
                     if (domColumnManager) domColumnManager.setSelectedColumns(cols);

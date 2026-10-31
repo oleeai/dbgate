@@ -80,6 +80,7 @@
     'icon minus': 'mdi mdi-minus-circle',
     'icon connection': 'mdi mdi-connection',
     'icon cell-data': 'mdi mdi-dock-right',
+    'icon inspector': 'mdi mdi-information-box-outline',
     'icon sql-generator': 'mdi mdi-cog-transfer',
     'icon keyboard': 'mdi mdi-keyboard-settings',
     'icon settings': 'mdi mdi-cog',

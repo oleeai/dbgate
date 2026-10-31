@@ -1,15 +1,13 @@
 <script lang="ts">
   import _ from 'lodash';
-  import { onDestroy, onMount, tick } from 'svelte';
-  import { cubicOut, quintOut } from 'svelte/easing';
+  import { onDestroy, tick } from 'svelte';
   import FontIcon from '../icons/FontIcon.svelte';
   import { findCommand } from '../commands/runCommand';
+  import InspectorHero from '../inspector/InspectorHero.svelte';
   import { currentThemeType } from '../plugins/themes';
   import { _t } from '../translations';
   import { apiCall } from '../utility/api';
   import { isCtrlOrCommandKey, isMac } from '../utility/common';
-  import splitterDrag from '../utility/splitterDrag';
-  import { getLocalStorage, setLocalStorage } from '../utility/storageCache';
   import RowSidePanelField from './RowSidePanelField.svelte';
   import RowSidePanelLookup from './RowSidePanelLookup.svelte';
   import {
@@ -32,14 +30,13 @@
   export let mode: 'edit' | 'insert' = 'edit';
   export let rowIndex: number = null;
   export let editorTypes = null;
+  // the grid's current column, its field is marked and kept in view
+  export let currentColumn = null;
+  // called when the edit is saved or cancelled
   export let onClose;
   export let onNavigate;
   export let onInserted;
 
-  const WIDTH_STORAGE_KEY = 'dataGridRowSidePanelWidth';
-  const MIN_WIDTH = 340;
-
-  let width = Math.max(getLocalStorage(WIDTH_STORAGE_KEY, 420), MIN_WIDTH);
   let domPanel;
   let domBody;
   // edited fields only: uniqueName -> editor value (string, boolean or null)
@@ -49,8 +46,6 @@
   let refQueue = [];
   let refTimer = null;
   let target = null;
-
-  const saveWidth = _.debounce(value => setLocalStorage(WIDTH_STORAGE_KEY, value), 300);
 
   $: table = display?.baseTable;
   $: columns = (display?.columns ?? []).filter(col => col.uniquePath?.length == 1);
@@ -64,6 +59,8 @@
   $: scheduleReferenceLoads(fields);
   $: handleTargetChange(mode, rowIndex);
   $: saveShortcut = isMac() ? '⌘S' : 'Ctrl+S';
+  $: showFooter = canEdit && (mode == 'insert' || isDirty);
+  $: revealCurrentField(currentColumn);
 
   function getKeyParts(table, rowData) {
     if (!table?.primaryKey || !rowData) return [];
@@ -263,13 +260,49 @@
     }
   }
 
+  // scrolls only the field list: the inspector may still be sliding in, and the page must not move with it
+  function scrollIntoBody(element) {
+    if (!element || !domBody) return;
+    const bodyRect = domBody.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    if (rect.top < bodyRect.top) domBody.scrollTop -= bodyRect.top - rect.top + 8;
+    else if (rect.bottom > bodyRect.bottom) domBody.scrollTop += rect.bottom - bodyRect.bottom + 8;
+  }
+
   async function focusField(uniqueName) {
     await tick();
     const input = domPanel?.querySelector(`#row-side-panel-${CSS.escape(uniqueName)}`);
     if (input) {
-      input.focus();
-      input.scrollIntoView?.({ block: 'nearest' });
+      input.focus({ preventScroll: true });
+      scrollIntoBody(input.closest('.field') ?? input);
     }
+  }
+
+  async function revealCurrentField(uniqueName) {
+    if (!uniqueName || mode != 'edit') return;
+    await tick();
+    scrollIntoBody(domBody?.querySelector(`[data-unique-name="${CSS.escape(uniqueName)}"]`));
+  }
+
+  /** Takes the keyboard focus: the first field of a new row, the panel itself for an existing row. */
+  export async function focusPanel() {
+    await tick();
+    if (mode == 'insert') {
+      const first = fields.find(x => x.editable && !x.column.autoIncrement && !x.column.hasAutoValue);
+      if (first) {
+        focusField(first.uniqueName);
+        return;
+      }
+    }
+    domPanel?.focus({ preventScroll: true });
+  }
+
+  /** Keeps unsaved edits as pending changes, like leaving an edited grid cell. */
+  export function commitDraft() {
+    if (target?.mode == 'edit' && !_.isEmpty(draft) && _.isNumber(target.rowIndex)) {
+      writeValues(target.rowIndex, collectValues(target.rowIndex).values);
+    }
+    draft = {};
   }
 
   export function save() {
@@ -379,104 +412,56 @@
     e.stopPropagation();
   }
 
-  // Esc also closes the sheet when the grid next to it has the focus
-  function handleWindowKeyDown(e) {
-    if (e.key != 'Escape' || lookup) return;
-    if (e.target?.classList?.contains('focus-field') && domPanel?.parentElement?.contains(e.target)) cancel();
-  }
-
-  function handleResize(e) {
-    const maxWidth = Math.max((domPanel?.parentElement?.clientWidth ?? 1200) - 120, MIN_WIDTH);
-    width = Math.round(Math.min(Math.max(width - e.detail, MIN_WIDTH), maxWidth));
-    saveWidth(width);
-  }
-
-  function sheet(node, { leaving = false } = {}) {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      return { duration: 140, css: t => `opacity: ${t}` };
-    }
-    return {
-      duration: leaving ? 180 : 260,
-      easing: leaving ? cubicOut : quintOut,
-      css: (t, u) => `transform: translateX(${u * 100}%)`,
-    };
-  }
-
-  onMount(async () => {
-    await tick();
-    if (mode == 'insert') {
-      const first = fields.find(x => x.editable && !x.column.autoIncrement && !x.column.hasAutoValue);
-      if (first) focusField(first.uniqueName);
-      else domPanel?.focus();
-    } else {
-      domPanel?.focus();
-    }
-  });
-
   onDestroy(() => {
     if (refTimer) clearTimeout(refTimer);
-    saveWidth.flush();
   });
 </script>
 
-<svelte:window on:keydown={handleWindowKeyDown} />
-
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-<aside
-  class="sheet"
-  style={`width:${width}px; color-scheme:${$currentThemeType == 'dark' ? 'dark' : 'light'}`}
+<section
+  class="row-section"
+  style={`color-scheme:${$currentThemeType == 'dark' ? 'dark' : 'light'}`}
   tabindex="-1"
   bind:this={domPanel}
   on:keydown={handleKeyDown}
-  in:sheet|global
-  out:sheet|global={{ leaving: true }}
   aria-label={mode == 'insert'
     ? _t('rowPanel.ariaInsert', { defaultMessage: 'New row' })
     : _t('rowPanel.ariaEdit', { defaultMessage: 'Edit row' })}
   data-testid="RowSidePanel_sheet"
 >
-  <div class="resize-handle" use:splitterDrag={'clientX'} on:resizeSplitter={handleResize} />
-
-  <header class="header">
-    <div class="heading">
-      <div class="title-row">
-        <span class="table-icon">
-          <FontIcon icon={mode == 'insert' ? 'mdi mdi-table-row-plus-after' : 'mdi mdi-table'} />
-        </span>
-        <span class="title" title={table ? `${table.schemaName ? table.schemaName + '.' : ''}${table.pureName}` : ''}
-          >{table?.pureName ?? ''}</span
-        >
-        {#if mode == 'insert'}
-          <span class="chip new">{_t('rowPanel.chip.newRow', { defaultMessage: 'New row' })}</span>
-        {:else if rowStatus?.status == 'deleted'}
-          <span class="chip deleted">{_t('rowPanel.chip.deleted', { defaultMessage: 'Marked for deletion' })}</span>
-        {:else if rowStatus?.status == 'inserted'}
-          <span class="chip new">{_t('rowPanel.chip.inserted', { defaultMessage: 'New · not saved' })}</span>
-        {:else if rowStatus?.status == 'updated'}
-          <span class="chip pending">{_t('rowPanel.chip.pending', { defaultMessage: 'Pending changes' })}</span>
-        {/if}
-      </div>
-      <div class="subtitle">
-        {#if mode == 'insert'}
-          {_t('rowPanel.insertHint', { defaultMessage: 'Fields left empty use their column defaults' })}
-        {:else if keyParts.length > 0}
-          {#each keyParts as part}
-            <span class="key-pill">
-              <span class="key-name">{part.name}</span><span class="key-value">{part.value}</span>
-            </span>
-          {/each}
-          <span class="position"
-            >{_t('rowPanel.rowNumber', { defaultMessage: 'Row {number}', values: { number: rowIndex + 1 } })}</span
-          >
-        {:else if _.isNumber(rowIndex)}
-          {_t('rowPanel.rowNumber', { defaultMessage: 'Row {number}', values: { number: rowIndex + 1 } })}
-        {/if}
-      </div>
-    </div>
-
-    {#if mode == 'edit'}
-      <div class="nav">
+  <InspectorHero
+    icon={mode == 'insert' ? 'mdi mdi-table-row-plus-after' : 'mdi mdi-table-row'}
+    title={mode == 'insert'
+      ? _t('rowPanel.chip.newRow', { defaultMessage: 'New row' })
+      : _.isNumber(rowIndex)
+        ? _t('rowPanel.rowNumber', { defaultMessage: 'Row {number}', values: { number: rowIndex + 1 } })
+        : _t('rowPanel.title', { defaultMessage: 'Row' })}
+  >
+    <svelte:fragment slot="chips">
+      {#if mode == 'edit' && rowStatus?.status == 'deleted'}
+        <span class="chip deleted">{_t('rowPanel.chip.deleted', { defaultMessage: 'Marked for deletion' })}</span>
+      {:else if mode == 'edit' && rowStatus?.status == 'inserted'}
+        <span class="chip new">{_t('rowPanel.chip.inserted', { defaultMessage: 'New · not saved' })}</span>
+      {:else if mode == 'edit' && rowStatus?.status == 'updated'}
+        <span class="chip pending">{_t('rowPanel.chip.pending', { defaultMessage: 'Pending changes' })}</span>
+      {/if}
+    </svelte:fragment>
+    <svelte:fragment slot="subtitle">
+      {#if mode == 'insert'}
+        {_t('rowPanel.insertHint', { defaultMessage: 'Fields left empty use their column defaults' })}
+      {:else if keyParts.length > 0}
+        {#each keyParts as part}
+          <span class="key-pill">
+            <span class="key-name">{part.name}</span><span class="key-value">{part.value}</span>
+          </span>
+        {/each}
+      {:else}
+        {table?.pureName ?? ''}
+      {/if}
+    </svelte:fragment>
+    <svelte:fragment slot="trailing">
+      {#if mode == 'edit'}
         <button
           class="icon-button"
           disabled={!_.isNumber(rowIndex) || rowIndex <= 0}
@@ -495,17 +480,9 @@
         >
           <FontIcon icon="icon chevron-down" />
         </button>
-      </div>
-    {/if}
-    <button
-      class="icon-button"
-      on:click={cancel}
-      title={_t('rowPanel.close', { defaultMessage: 'Close (Esc)' })}
-      data-testid="RowSidePanel_close"
-    >
-      <FontIcon icon="icon close" />
-    </button>
-  </header>
+      {/if}
+    </svelte:fragment>
+  </InspectorHero>
 
   {#if isDeleted}
     <div class="banner danger">
@@ -528,6 +505,7 @@
       {#each fields as field (field.uniqueName)}
         <RowSidePanelField
           {field}
+          current={mode == 'edit' && field.uniqueName == currentColumn}
           lookupOpen={lookup?.uniqueName == field.uniqueName}
           onChange={handleChange}
           onOpenLookup={openLookup}
@@ -536,22 +514,20 @@
     {/if}
   </div>
 
-  <footer class="footer">
-    <span class="hint">
-      {#if canEdit}
+  {#if showFooter}
+    <footer class="footer">
+      <span class="hint">
         <span>{_t('rowPanel.footerHint', { defaultMessage: 'Adds to the pending changes' })}</span>
         <span class="hint-secondary"
           >{_t('rowPanel.footerHintWrite', {
-            defaultMessage: '{shortcut} writes them to the database',
+            defaultMessage: '{shortcut} saves to the database',
             values: { shortcut: saveShortcut },
           })}</span
         >
-      {/if}
-    </span>
-    <button class="button secondary" on:click={cancel} data-testid="RowSidePanel_cancel">
-      {canEdit ? _t('common.cancel', { defaultMessage: 'Cancel' }) : _t('common.close', { defaultMessage: 'Close' })}
-    </button>
-    {#if canEdit}
+      </span>
+      <button class="button secondary" on:click={cancel} data-testid="RowSidePanel_cancel">
+        {_t('common.cancel', { defaultMessage: 'Cancel' })}
+      </button>
       <button
         class="button primary"
         disabled={mode == 'edit' && !isDirty}
@@ -561,8 +537,8 @@
       >
         {_t('common.save', { defaultMessage: 'Save' })}
       </button>
-    {/if}
-  </footer>
+    </footer>
+  {/if}
 
   {#if lookup}
     <RowSidePanelLookup
@@ -578,87 +554,19 @@
       onClose={closeLookup}
     />
   {/if}
-</aside>
+</section>
 
 <style>
-  .sheet {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10;
-    max-width: calc(100% - 48px);
+  .row-section {
+    position: relative;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    background: var(--theme-modal-background);
-    color: var(--theme-generic-font);
-    border-left: 1px solid var(--theme-ui-border);
-    box-shadow:
-      -18px 0 40px -18px color-mix(in srgb, #000 38%, transparent),
-      -2px 0 8px -4px color-mix(in srgb, #000 14%, transparent);
     outline: none;
     user-select: text;
   }
 
-  .resize-handle {
-    position: absolute;
-    left: -3px;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    z-index: 2;
-    cursor: col-resize;
-  }
-  .resize-handle:hover,
-  .resize-handle:active {
-    background: linear-gradient(
-      to right,
-      transparent 2px,
-      var(--theme-splitter-active) 2px,
-      var(--theme-splitter-active) 4px,
-      transparent 4px
-    );
-  }
-
-  .header {
-    flex-shrink: 0;
-    display: flex;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 12px 10px 12px 16px;
-    border-bottom: 1px solid var(--theme-ui-border);
-  }
-  .heading {
-    flex: 1;
-    min-width: 0;
-  }
-  .title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-  .table-icon {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    color: var(--theme-ui-accent-strong);
-    background: var(--theme-ui-accent-soft);
-  }
-  .title {
-    min-width: 0;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
   .chip {
     flex-shrink: 0;
     padding: 1px 7px;
@@ -680,15 +588,6 @@
     color: var(--theme-generic-font-error);
   }
 
-  .subtitle {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 6px 0 0 32px;
-    font-size: 12px;
-    color: var(--theme-generic-font-grayed);
-  }
   .key-pill {
     display: inline-flex;
     align-items: center;
@@ -710,17 +609,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  .position {
-    font-variant-numeric: tabular-nums;
-  }
-
-  .nav {
-    display: flex;
-    gap: 2px;
-    padding-right: 4px;
-    margin-right: 2px;
-    border-right: 1px solid var(--theme-ui-border);
   }
   .icon-button {
     flex-shrink: 0;
@@ -773,7 +661,8 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 6px 0 12px;
+    padding: 2px 0 12px;
+    border-top: 1px solid var(--theme-ui-border-subtle);
   }
   .empty {
     padding: 24px 16px;
@@ -788,6 +677,13 @@
     padding: 10px 12px 10px 16px;
     border-top: 1px solid var(--theme-ui-border);
     background: var(--theme-modal-footer-background);
+    animation: row-footer-in 220ms var(--dim-ease-spring);
+  }
+  @keyframes row-footer-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
   }
   .hint {
     flex: 1;
@@ -858,6 +754,9 @@
   @media (prefers-reduced-motion: reduce) {
     .button:active:not(:disabled) {
       transform: none;
+    }
+    .footer {
+      animation: none;
     }
   }
 </style>

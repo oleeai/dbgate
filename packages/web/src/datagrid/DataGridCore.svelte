@@ -87,7 +87,8 @@
     name: __t('command.datagrid.insertNewRow', { defaultMessage: 'Insert new row' }),
     toolbarName: __t('command.datagrid.insertNewRow.toolbar', { defaultMessage: 'New row' }),
     icon: 'icon add',
-    keyText: isMac() ? 'Command+I' : 'Insert',
+    // ⌘I shows the table inspector
+    keyText: isMac() ? 'Command+Shift+I' : 'Insert',
     usageAnalytics: () => getDataGridUsage('insert_row', 1),
     testEnabled: () => getCurrentDataGrid()?.getGrider()?.canInsert,
     onClick: () => getCurrentDataGrid().insertNewRow(),
@@ -522,7 +523,7 @@
   import SaveArchiveModal from '../modals/SaveArchiveModal.svelte';
   import hasPermission from '../utility/hasPermission';
   import macros from '../macro/macros';
-  import RowSidePanel from './RowSidePanel.svelte';
+  import type { TableInspector } from '../inspector/tableInspector';
   import { createGridUndoToast } from './gridUndoToast';
   import CellQuickLook from './CellQuickLook.svelte';
   import { trackUsage } from '../utility/usageAnalytics';
@@ -574,9 +575,9 @@
   export let onGetSelectionMenu = null;
   export let onOpenChart = null;
   export let macroCondition = null;
-  // table data grids edit and insert rows in a side sheet
-  export let allowRowSidePanel = false;
-  export let onRowSidePanelChanged = null;
+  // table data grids show the current row, column and table in the inspector (TableDataTab), and edit rows there
+  export let allowInspector = false;
+  export let isDetailView = false;
 
   // the main grid of a table tab owns the toolbar as soon as the tab is shown
   export let activateOnTabVisible = false;
@@ -878,13 +879,33 @@
     });
   }
 
-  let rowSidePanel = null;
+  const inspector = getContext('tableInspector') as TableInspector;
+  $: inspectorEnabled = allowInspector && !!inspector && !isDetailView;
 
-  function setRowSidePanel(value) {
-    rowSidePanel = value;
-    onRowSidePanelChanged?.(!!value);
-    invalidateCommands();
+  const inspectorApi = {
+    navigateRow: (rowIndex, delta) =>
+      moveCurrentCell(rowIndex + delta, _.isNumber(currentCell?.[1]) ? currentCell[1] : 0),
+    rowInserted: rowIndex => {
+      undoToast.announce('insert');
+      selectRow(rowIndex);
+    },
+    focus: () => domFocusField?.focus(),
+    refresh: () => refresh(),
+  };
+
+  $: if (inspectorEnabled) {
+    inspector.setGrid(inspectorApi, {
+      grider,
+      display,
+      currentCell,
+      selectedCells,
+      columnNames: realColumnUniqueNames,
+      editorTypes: dataEditorTypesBehaviourOverride ?? display?.driver?.dataEditorTypesBehaviour,
+      allRowCount,
+    });
   }
+
+  onDestroy(() => inspector?.clearGrid(inspectorApi));
 
   // a right click selects a cell without moving the current cell, so the selection wins
   function getRowToEdit() {
@@ -895,20 +916,13 @@
 
   export function editRowEnabled() {
     const rowIndex = getRowToEdit();
-    return allowRowSidePanel && _.isNumber(rowIndex) && !!grider?.getRowData(rowIndex);
+    return inspectorEnabled && _.isNumber(rowIndex) && !!grider?.getRowData(rowIndex);
   }
 
   export function editRow(rowIndex = getRowToEdit()) {
-    if (!allowRowSidePanel || !_.isNumber(rowIndex)) return;
-    setRowSidePanel({ mode: 'edit', rowIndex });
-    // a whole-row selection would open the cell data view next to the sheet
+    if (!inspectorEnabled || !_.isNumber(rowIndex)) return;
     if (!isRegularCell(currentCell) || currentCell[0] != rowIndex) selectRow(rowIndex);
-  }
-
-  function closeRowSidePanel() {
-    setRowSidePanel(null);
-    if (_.isNumber(currentCell?.[0]) && selectedCells.some(cell => cell[1] == 'header')) selectRow(currentCell[0]);
-    domFocusField?.focus();
+    inspector.editRow();
   }
 
   async function selectRow(rowIndex) {
@@ -919,15 +933,6 @@
     selectedCells = [cell];
     await tick();
     scrollIntoView(cell);
-  }
-
-  // while the sheet is open it follows the grid's current row
-  $: if (rowSidePanel?.mode == 'edit' && _.isNumber(currentCell?.[0]) && currentCell[0] != rowSidePanel.rowIndex) {
-    rowSidePanel = { ...rowSidePanel, rowIndex: currentCell[0] };
-  }
-
-  $: if (rowSidePanel?.mode == 'edit' && grider && rowSidePanel.rowIndex >= grider.rowCount && isLoadedAll) {
-    setRowSidePanel(null);
   }
 
   // Quick Look: Space previews the current cell, Space or Esc closes it, the arrows move it along with the cell
@@ -978,8 +983,8 @@
 
   export async function insertNewRow() {
     if (!grider.canInsert) return;
-    if (allowRowSidePanel) {
-      setRowSidePanel({ mode: 'insert', rowIndex: null });
+    if (inspectorEnabled) {
+      inspector.startInsert();
       return;
     }
     const rowIndex = grider.insertRow();
@@ -1884,7 +1889,7 @@
   }
 
   function handleGridDoubleClick(event) {
-    if (!allowRowSidePanel || event.target.closest('.showFormButtonMarker')) return;
+    if (!inspectorEnabled || event.target.closest('.showFormButtonMarker')) return;
     const cell = cellFromEvent(event);
     if (isRowHeaderCell(cell) && grider.getRowData(cell[0])) editRow(cell[0]);
   }
@@ -2359,8 +2364,8 @@
   function handleSetFormView(rowData, column) {
     if (column) {
       openReferenceForm(rowData, column, conid, database);
-    } else if (allowRowSidePanel) {
-      // the row header's form button opens the row in the side sheet instead of a new tab
+    } else if (inspectorEnabled) {
+      // the row header's form button opens the row in the inspector instead of a new tab
       const rowIndex = _.range(grider.rowCount).find(index => grider.getRowData(index) === rowData);
       editRow(rowIndex);
     } else {
@@ -2751,13 +2756,7 @@
             {/each}
             {#if showAddColumnButton && trailingHorizontalScrollPadding == 0}
               <td class="add-column-cell">
-                <ColumnAddButton
-                  {conid}
-                  {database}
-                  table={display.baseTable}
-                  driver={display.driver}
-                  onSaved={refresh}
-                />
+                <ColumnAddButton table={display.baseTable} />
               </td>
             {/if}
             {#if trailingHorizontalScrollPadding > 0}
@@ -2767,13 +2766,7 @@
                 style={`width:${trailingHorizontalScrollPadding}px; min-width:${trailingHorizontalScrollPadding}px; max-width:${trailingHorizontalScrollPadding}px`}
               >
                 {#if showAddColumnButton}
-                  <ColumnAddButton
-                    {conid}
-                    {database}
-                    table={display.baseTable}
-                    driver={display.driver}
-                    onSaved={refresh}
-                  />
+                  <ColumnAddButton table={display.baseTable} />
                 {/if}
               </td>
             {/if}
@@ -3004,26 +2997,6 @@
       />
     {/if}
   </div>
-
-  {#if rowSidePanel}
-    <RowSidePanel
-      {display}
-      {grider}
-      {conid}
-      {database}
-      mode={rowSidePanel.mode}
-      rowIndex={rowSidePanel.rowIndex}
-      editorTypes={getEditorTypes()}
-      onClose={closeRowSidePanel}
-      onNavigate={delta =>
-        moveCurrentCell(rowSidePanel.rowIndex + delta, _.isNumber(currentCell?.[1]) ? currentCell[1] : 0)}
-      onInserted={rowIndex => {
-        undoToast.announce('insert');
-        closeRowSidePanel();
-        selectRow(rowIndex);
-      }}
-    />
-  {/if}
 
   <CellQuickLook
     open={quickLookOpen}
