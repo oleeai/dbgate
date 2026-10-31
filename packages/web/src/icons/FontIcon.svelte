@@ -113,6 +113,7 @@
 
     'icon columns': 'mdi mdi-view-column',
     'icon columns-outline': 'mdi mdi-view-column-outline',
+    'icon dock-left': 'mdi mdi-dock-left',
 
     'icon locked-database-mode': 'mdi mdi-database-lock',
     'icon unlocked-database-mode': 'mdi mdi-database-eye',
