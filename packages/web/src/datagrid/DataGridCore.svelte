@@ -190,6 +190,19 @@
   });
 
   registerCommand({
+    id: 'dataGrid.quickLook',
+    category: __t('command.datagrid', { defaultMessage: 'Data grid' }),
+    name: __t('command.datagrid.quickLook', { defaultMessage: 'Quick Look' }),
+    icon: 'icon eye',
+    // shown in menus; the grid handles Space itself
+    keyText: 'Space',
+    disableHandleKeyText: 'Space',
+    usageAnalytics: () => getDataGridUsage('quick_look'),
+    testEnabled: () => getCurrentDataGrid()?.quickLookEnabled(),
+    onClick: () => getCurrentDataGrid().quickLook(),
+  });
+
+  registerCommand({
     id: 'dataGrid.editJsonDocument',
     category: __t('command.datagrid', { defaultMessage: 'Data grid' }),
     keyText: 'CtrlOrCommand+J',
@@ -498,6 +511,7 @@
   import hasPermission from '../utility/hasPermission';
   import macros from '../macro/macros';
   import RowSidePanel from './RowSidePanel.svelte';
+  import CellQuickLook from './CellQuickLook.svelte';
   import { trackUsage } from '../utility/usageAnalytics';
 
   export let onLoadNextData = undefined;
@@ -891,6 +905,52 @@
   $: if (rowSidePanel?.mode == 'edit' && grider && rowSidePanel.rowIndex >= grider.rowCount && isLoadedAll) {
     setRowSidePanel(null);
   }
+
+  // Quick Look: Space previews the current cell, Space or Esc closes it, the arrows move it along with the cell
+  let quickLookOpen = false;
+
+  function handleQuickLookKeyDown(event) {
+    if (event.key == ' ' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      quickLookOpen = !quickLookOpen && isRegularCell(currentCell);
+      return true;
+    }
+    if (event.key == 'Escape' && quickLookOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      quickLookOpen = false;
+      return true;
+    }
+    // Enter and F2 still start editing, the preview steps aside
+    if (quickLookOpen && (event.key == 'Enter' || event.key == 'F2') && cellEditable(currentCell)) {
+      quickLookOpen = false;
+    }
+    return false;
+  }
+
+  // a right click selects a cell without moving the current cell, so the selection wins
+  function getQuickLookCell() {
+    return selectedCells.length == 1 && isRegularCell(selectedCells[0]) ? selectedCells[0] : currentCell;
+  }
+
+  export function quickLookEnabled() {
+    const cell = getQuickLookCell();
+    return isRegularCell(cell) && !!grider?.getRowData(cell[0]);
+  }
+
+  export function quickLook() {
+    if (!quickLookEnabled()) return;
+    currentCell = getQuickLookCell();
+    quickLookOpen = true;
+    domFocusField?.focus();
+  }
+
+  function closeQuickLook(restoreFocus) {
+    quickLookOpen = false;
+    if (restoreFocus) domFocusField?.focus();
+  }
+
+  $: if (quickLookOpen && ($inplaceEditorState.cell || !isRegularCell(currentCell))) quickLookOpen = false;
 
   export async function insertNewRow() {
     if (!grider.canInsert) return;
@@ -1935,6 +1995,7 @@
 
   function handleGridKeyDown(event) {
     if ($inplaceEditorState.cell) return;
+    if (handleQuickLookKeyDown(event)) return;
     const currentCellEditable = cellEditable(currentCell);
 
     if (
@@ -2331,6 +2392,7 @@
     { command: 'dataGrid.undo', hideDisabled: true },
     { command: 'dataGrid.redo', hideDisabled: true },
     { divider: true },
+    { command: 'dataGrid.quickLook', hideDisabled: true },
     { command: 'dataGrid.editCellValue', hideDisabled: true },
     { command: 'dataGrid.newJson', hideDisabled: true },
     { command: 'dataGrid.editJsonDocument', hideDisabled: true },
@@ -2842,6 +2904,21 @@
       }}
     />
   {/if}
+
+  <CellQuickLook
+    open={quickLookOpen}
+    rowData={isRegularCell(currentCell) ? grider.getRowData(currentCell[0]) : null}
+    column={isRegularCell(currentCell) ? columns[columnSizes.realToModel(currentCell[1])] : null}
+    rowIndex={currentCell?.[0]}
+    colIndex={currentCell?.[1]}
+    editorTypes={getEditorTypes()}
+    gridElement={domContainer}
+    onClose={closeQuickLook}
+    onGridKeyDown={event => {
+      domFocusField?.focus();
+      handleGridKeyDown(event);
+    }}
+  />
 {/if}
 
 <style>
