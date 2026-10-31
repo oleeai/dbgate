@@ -12,6 +12,7 @@
   import { getLocalStorage } from '../utility/storageCache';
   import runCommand from '../commands/runCommand';
   import { _t } from '../translations';
+  import { popoverIn, popoverOut } from '../utility/motion';
 
   export let showAllConnections = false;
   export let onShowAllConnections = null;
@@ -131,7 +132,7 @@
   </button>
 
   {#if open}
-    <div class="popover" data-testid="ConnectionSwitcher_popover">
+    <div class="popover" in:popoverIn={{ anchor: domRoot }} out:popoverOut data-testid="ConnectionSwitcher_popover">
       <div class="search">
         <FontIcon icon="icon search" />
         <input
@@ -225,7 +226,7 @@
     border-color: var(--theme-ui-border);
   }
   .trigger:active {
-    transform: scale(0.985);
+    transform: scale(var(--dim-press-scale-large));
   }
   .trigger:focus-visible {
     outline: none;
@@ -332,24 +333,6 @@
     border-radius: 12px;
     box-shadow: var(--theme-popup-shadow);
     overflow: hidden;
-    transform-origin: top center;
-    animation: switcher-in 180ms var(--dim-ease-spring);
-  }
-
-  @keyframes switcher-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.98);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .popover {
-      animation: none;
-    }
-    .trigger:active {
-      transform: none;
-    }
   }
 
   @media (prefers-reduced-transparency: reduce) {

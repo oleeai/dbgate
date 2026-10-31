@@ -3,6 +3,7 @@
   import { tick } from 'svelte';
   import FontIcon from '../icons/FontIcon.svelte';
   import portal from '../utility/portal';
+  import { popoverIn, popoverOut } from '../utility/motion';
   import { _t } from '../translations';
 
   // Returns [{ label?, items: [{ text, icon?, onClick, checked?, danger?, testid? }] }]; falsy entries are skipped
@@ -152,6 +153,8 @@
     style={menuStyle}
     bind:this={domMenu}
     use:portal
+    in:popoverIn={{ anchor: domTrigger }}
+    out:popoverOut
     on:keydown={handleMenuKeyDown}
     on:contextmenu|preventDefault
     data-testid="ColumnHeaderMenu_menu"
@@ -219,7 +222,11 @@
     transition:
       opacity var(--dim-transition-fast),
       color var(--dim-transition-fast),
-      background-color var(--dim-transition-fast);
+      background-color var(--dim-transition-fast),
+      transform var(--dim-transition-press);
+  }
+  .trigger:active {
+    transform: scale(var(--dim-press-scale-small));
   }
   .trigger:hover {
     color: var(--theme-generic-font);
@@ -247,27 +254,6 @@
     color: var(--theme-generic-font);
     font-size: 13px;
     outline: none;
-    transform-origin: top left;
-    animation: column-menu-in 150ms var(--dim-ease-spring);
-  }
-
-  @keyframes column-menu-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.98);
-    }
-  }
-
-  @keyframes column-menu-fade {
-    from {
-      opacity: 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .menu {
-      animation: column-menu-fade 120ms linear;
-    }
   }
 
   .menu-header {

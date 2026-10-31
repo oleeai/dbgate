@@ -46,7 +46,12 @@
     display: flex;
     transition:
       color var(--dim-transition-fast),
-      background-color var(--dim-transition-fast);
+      background-color var(--dim-transition-fast),
+      transform var(--dim-transition-press);
+  }
+
+  .outer:active:not(.disabled) {
+    transform: scale(var(--dim-press-scale));
   }
 
   .outer.circleHover:hover:not(.disabled) {

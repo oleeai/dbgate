@@ -15,6 +15,7 @@
     findDefaultSchema,
   } from 'dbgate-tools';
   import { _t } from '../translations';
+  import { popoverIn, popoverOut } from '../utility/motion';
 
   export let schemaList;
   export let objectList;
@@ -217,7 +218,14 @@
   </button>
 
   {#if open}
-    <div class="popover" style={popoverStyle} bind:this={domPopover} data-testid="SchemaSelector_popover">
+    <div
+      class="popover"
+      style={popoverStyle}
+      bind:this={domPopover}
+      in:popoverIn={{ anchor: domTrigger }}
+      out:popoverOut
+      data-testid="SchemaSelector_popover"
+    >
       <div class="search">
         <FontIcon icon="icon search" />
         <input
@@ -296,7 +304,11 @@
     cursor: pointer;
     transition:
       border-color var(--dim-transition-fast),
-      background-color var(--dim-transition-fast);
+      background-color var(--dim-transition-fast),
+      transform var(--dim-transition-press);
+  }
+  .trigger:active {
+    transform: scale(var(--dim-press-scale));
   }
   .trigger:hover {
     border-color: var(--theme-ui-border-strong);
@@ -337,15 +349,6 @@
     border-radius: 10px;
     box-shadow: var(--theme-popup-shadow);
     overflow: hidden;
-    transform-origin: top center;
-    animation: schema-picker-in 160ms var(--dim-ease-spring);
-  }
-
-  @keyframes schema-picker-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.98);
-    }
   }
 
   @media (prefers-reduced-transparency: reduce) {
@@ -356,11 +359,6 @@
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .popover {
-      animation: none;
-    }
-  }
 
   .search {
     display: flex;

@@ -276,7 +276,9 @@
         script: scriptToSql(driver, commands),
       }));
       // console.log('deleteCascadesScripts', deleteCascadesScripts);
-      if (getBoolSettingsValue('skipConfirm.tableDataSave', false) && !deleteCascadesScripts?.length) {
+      // deleted rows can't be brought back after Save, so their SQL is always shown first
+      const alwaysConfirm = deleteCascadesScripts?.length > 0 || $changeSetStore?.value?.deletes?.length > 0;
+      if (getBoolSettingsValue('skipConfirm.tableDataSave', false) && !alwaysConfirm) {
         handleConfirmSql(sql);
       } else {
         showModal(ConfirmSqlModal, {
@@ -284,7 +286,7 @@
           onConfirm: confirmedSql => handleConfirmSql(confirmedSql),
           engine: driver.engine,
           deleteCascadesScripts,
-          skipConfirmSettingKey: deleteCascadesScripts?.length ? null : 'skipConfirm.tableDataSave',
+          skipConfirmSettingKey: alwaysConfirm ? null : 'skipConfirm.tableDataSave',
         });
       }
     }

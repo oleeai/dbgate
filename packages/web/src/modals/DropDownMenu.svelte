@@ -17,6 +17,7 @@
   import { prepareMenuItems } from '../utility/contextMenu';
   import FontIcon from '../icons/FontIcon.svelte';
   import { formatKeyText } from '../utility/common';
+  import { popoverIn, popoverOut } from '../utility/motion';
 
   export let items;
   export let top;
@@ -27,6 +28,9 @@
   export let submenuLevel = 0;
 
   let element;
+
+  // the point the menu was opened at (a button's corner or the mouse), the menu grows from there
+  const anchor = () => ({ x: left ?? 0, y: top ?? window.innerHeight - (bottom ?? 0) });
 
   let newLeft = undefined;
   let newTop = undefined;
@@ -151,6 +155,8 @@
   style:bottom={newTop == null && bottom != null ? `${bottom}px` : undefined}
   style:left={(newLeft ?? left) != null ? `${newLeft ?? left}px` : undefined}
   bind:this={element}
+  in:popoverIn|global={{ anchor }}
+  out:popoverOut|global
   data-testid={`DropDownMenu-container-${submenuLevel}`}
 >
   {#each preparedItems as item}
@@ -237,7 +243,6 @@
     padding: 5px;
     margin: 2px 0 0;
     max-width: calc(100vw - 16px);
-    animation: dropdown-fade-in 160ms var(--dim-ease-out);
     font-size: 13px;
     text-align: left;
     min-width: 160px;
@@ -247,13 +252,6 @@
     overflow-y: auto;
     max-height: calc(100% - 20px);
     user-select: none;
-  }
-
-  @keyframes dropdown-fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(-3px) scale(0.98);
-    }
   }
 
   @media (prefers-reduced-transparency: reduce) {
