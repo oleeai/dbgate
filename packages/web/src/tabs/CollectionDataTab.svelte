@@ -158,14 +158,16 @@
     const driver = findEngineDriver($connection, $extensions);
     const script = driver.getCollectionUpdateScript ? driver.getCollectionUpdateScript(json, $collectionInfo) : null;
     if (script) {
-      if (getBoolSettingsValue('skipConfirm.collectionDataSave', false)) {
+      // deleted documents can't be brought back after Save, so the script is always shown first
+      const alwaysConfirm = json?.deletes?.length > 0;
+      if (getBoolSettingsValue('skipConfirm.collectionDataSave', false) && !alwaysConfirm) {
         handleConfirmChange(json);
       } else {
         showModal(ConfirmNoSqlModal, {
           script,
           onConfirm: () => handleConfirmChange(json),
           engine: display.engine,
-          skipConfirmSettingKey: 'skipConfirm.collectionDataSave',
+          skipConfirmSettingKey: alwaysConfirm ? null : 'skipConfirm.collectionDataSave',
         });
       }
     } else {

@@ -523,6 +523,7 @@
   import hasPermission from '../utility/hasPermission';
   import macros from '../macro/macros';
   import RowSidePanel from './RowSidePanel.svelte';
+  import { createGridUndoToast } from './gridUndoToast';
   import CellQuickLook from './CellQuickLook.svelte';
   import { trackUsage } from '../utility/usageAnalytics';
   import { dataGridFilterRowVisible } from './dataGridFilterRow';
@@ -669,6 +670,13 @@
   onDestroy(() => {
     if (smoothRafId) cancelAnimationFrame(smoothRafId);
   });
+
+  // edits of the pending changes show a toast with Undo instead of asking first
+  const undoToast = createGridUndoToast(() => grider);
+  const tabVisible: any = getContext('tabVisible');
+  $: undoToast.sync(grider);
+  $: if (tabVisible && !$tabVisible) undoToast.close();
+  onDestroy(() => undoToast.close());
 
   function callUnsubscribeDbRefresh() {
     if (unsubscribeDbRefresh) {
@@ -833,10 +841,12 @@
       if (_.isNumber(index)) grider.revertRowChanges(index);
     }
     grider.endUpdate();
+    undoToast.announce('revertRows');
   }
 
   export function revertAllChanges() {
     grider.revertAllChanges();
+    undoToast.announce('revertAll');
   }
 
   export function deleteSelectedRows() {
@@ -847,6 +857,7 @@
       grider.deleteRow(index);
     }
     grider.endUpdate();
+    undoToast.announce('delete');
   }
 
   export function addNewColumnEnabled() {
@@ -1001,6 +1012,7 @@
       }
     }
     grider.endUpdate();
+    undoToast.announce('clone');
 
     if (rowIndex == null) return;
     const cell = [rowIndex, (currentCell && currentCell[1]) || 0];
@@ -1021,6 +1033,7 @@
         setCellValue(cell, value);
       });
     grider.endUpdate();
+    undoToast.announce(value === null ? 'setNull' : 'removeField');
   }
 
   export function undo() {
@@ -2640,7 +2653,10 @@
         isGridFocused = true;
       }}
       on:blur
-      on:paste={handlePaste}
+      on:paste={e => {
+        handlePaste(e);
+        undoToast.announce('paste');
+      }}
       on:copy={copyToClipboard}
       on:blur={() => {
         isGridFocused = false;
@@ -3002,6 +3018,7 @@
       onNavigate={delta =>
         moveCurrentCell(rowSidePanel.rowIndex + delta, _.isNumber(currentCell?.[1]) ? currentCell[1] : 0)}
       onInserted={rowIndex => {
+        undoToast.announce('insert');
         closeRowSidePanel();
         selectRow(rowIndex);
       }}
