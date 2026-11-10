@@ -10,7 +10,7 @@
   import { useConnectionList, useDatabaseStatus, useServerStatus } from '../utility/metadataLoaders';
   import { reopenConnection } from '../utility/connectionProblem';
   import { switchCurrentDatabase } from '../utility/common';
-  import { getLocalStorage } from '../utility/storageCache';
+  import { getLocalStorage, setLocalStorage } from '../utility/storageCache';
   import runCommand from '../commands/runCommand';
   import { _t } from '../translations';
   import { popoverIn, popoverOut } from '../utility/motion';
@@ -49,6 +49,39 @@
     x => getConnectionLabel(x).toUpperCase()
   );
   $: filteredConnections = sortedConnections.filter(x => connectionMatches(x, filter));
+  // Connections grouped by their folder (connection.parent, e.g. PARENT_<id> from the environment): one section per
+  // project, sorted by name, the ungrouped ones last. Only when there are at least two folders.
+  $: grouped = _.uniq(sortedConnections.map(x => x.parent || '')).length > 1;
+  $: groups = grouped ? groupConnections(filteredConnections) : [{ name: '', items: filteredConnections }];
+
+  let collapsedGroups = getLocalStorage('connectionSwitcherCollapsedGroups') || {};
+
+  function groupConnections(list) {
+    const byParent = _.groupBy(list, x => x.parent || '');
+    return _.sortBy(Object.keys(byParent), name => (name ? name.toUpperCase() : '\uffff')).map(name => ({
+      name,
+      items: byParent[name],
+    }));
+  }
+
+  // Inside its folder a connection shows without the folder's name in front ("Oleon · Postgres" -> "Postgres").
+  function rowLabel(connection, inGroup) {
+    const label = getConnectionLabel(connection);
+    const prefix = connection.parent ? `${connection.parent} · ` : null;
+    return inGroup && prefix && label.startsWith(prefix) && label.length > prefix.length
+      ? label.slice(prefix.length)
+      : label;
+  }
+
+  // A folder stays open while searching and while it holds the current connection.
+  function groupCollapsed(name, collapsedGroups, filter, currentConnection) {
+    return !filter && !!collapsedGroups[name] && !(currentConnection && (currentConnection.parent || '') == name);
+  }
+
+  function toggleGroup(name) {
+    collapsedGroups = { ...collapsedGroups, [name]: !collapsedGroups[name] };
+    setLocalStorage('connectionSwitcherCollapsedGroups', collapsedGroups);
+  }
 
   function engineName(connection) {
     const match = (connection?.engine || '').match(/^([^@]*)@/);
@@ -110,8 +143,9 @@
   }
 
   function handleSearchKeyDown(e) {
-    if (e.key == 'Enter' && filteredConnections.length > 0) {
-      handlePickConnection(filteredConnections[0]);
+    const first = groups.find(g => g.items.length > 0)?.items[0];
+    if (e.key == 'Enter' && first) {
+      handlePickConnection(first);
     }
   }
 
@@ -170,50 +204,73 @@
       </div>
 
       <div class="list">
-        <div class="section-label">{_t('common.connections', { defaultMessage: 'Connections' })}</div>
-        {#each filteredConnections as connection (connection._id)}
-          {@const isCurrent = connection._id == currentConid}
-          {@const offline = isOffline(connection, $serverStatus, $openedConnections, currentOffline)}
-          <button
-            class="row"
-            class:active={isCurrent && connection.singleDatabase}
-            title={offline
-              ? _t('connectionSwitcher.offlineHint', { defaultMessage: "Can't reach this server. Click to try again." })
-              : null}
-            on:click={() => handlePickConnection(connection)}
-          >
-            <span class="avatar small" class:current={isCurrent}><EngineLogo {connection} size={14} /></span>
-            <span class="row-label">{getConnectionLabel(connection)}</span>
-            {#if offline}
-              <span class="row-meta offline" data-testid="ConnectionSwitcher_offlineLabel">
-                <span class="offline-dot inline" />{_t('connectionSwitcher.offline', { defaultMessage: 'Offline' })}
-              </span>
-            {:else}
-              <span class="row-meta">{engineName(connection)}</span>
-            {/if}
-            {#if isCurrent && connection.singleDatabase}
-              <span class="check"><FontIcon icon="icon check" /></span>
-            {/if}
-          </button>
-
-          {#if !connection.singleDatabase && $openedConnections.includes(connection._id)}
-            <ConnectionSwitcherDatabases conid={connection._id} let:databases>
-              {@const labelMatches = !filter || filterName(filter, getConnectionLabel(connection))}
-              {#each databases.filter(db => labelMatches || filterName(filter, db.name)) as db (db.name)}
-                {@const isActive = isCurrent && db.name == currentDbName}
-                <button class="row nested" class:active={isActive} on:click={() => handlePickDatabase(connection, db.name)}>
-                  <span class="db-icon"><FontIcon icon="icon database" /></span>
-                  <span class="row-label">{db.name}</span>
-                  {#if isActive}
-                    <span class="check"><FontIcon icon="icon check" /></span>
-                  {/if}
-                </button>
-              {/each}
-            </ConnectionSwitcherDatabases>
+        {#if !grouped}
+          <div class="section-label">{_t('common.connections', { defaultMessage: 'Connections' })}</div>
+        {/if}
+        {#each groups as group (group.name)}
+          {@const isCollapsed = grouped && groupCollapsed(group.name, collapsedGroups, filter, currentConnection)}
+          {#if grouped}
+            <button
+              class="group-label"
+              class:collapsed={isCollapsed}
+              aria-expanded={!isCollapsed}
+              on:click={() => toggleGroup(group.name)}
+              data-testid="ConnectionSwitcher_group"
+            >
+              <span class="group-chevron"><FontIcon icon="icon chevron-down" /></span>
+              <span class="group-name"
+                >{group.name || _t('connectionSwitcher.otherConnections', { defaultMessage: 'Other' })}</span
+              >
+              <span class="group-count">{group.items.length}</span>
+            </button>
           {/if}
-        {:else}
-          <div class="empty">{_t('connectionSwitcher.empty', { defaultMessage: 'No connections found' })}</div>
+          {#if !isCollapsed}
+            {#each group.items as connection (connection._id)}
+              {@const isCurrent = connection._id == currentConid}
+              {@const offline = isOffline(connection, $serverStatus, $openedConnections, currentOffline)}
+              <button
+                class="row"
+                class:active={isCurrent && connection.singleDatabase}
+                title={offline
+                  ? _t('connectionSwitcher.offlineHint', { defaultMessage: "Can't reach this server. Click to try again." })
+                  : null}
+                on:click={() => handlePickConnection(connection)}
+              >
+                <span class="avatar small" class:current={isCurrent}><EngineLogo {connection} size={14} /></span>
+                <span class="row-label" title={getConnectionLabel(connection)}>{rowLabel(connection, grouped)}</span>
+                {#if offline}
+                  <span class="row-meta offline" data-testid="ConnectionSwitcher_offlineLabel">
+                    <span class="offline-dot inline" />{_t('connectionSwitcher.offline', { defaultMessage: 'Offline' })}
+                  </span>
+                {:else}
+                  <span class="row-meta">{engineName(connection)}</span>
+                {/if}
+                {#if isCurrent && connection.singleDatabase}
+                  <span class="check"><FontIcon icon="icon check" /></span>
+                {/if}
+              </button>
+
+              {#if !connection.singleDatabase && $openedConnections.includes(connection._id)}
+                <ConnectionSwitcherDatabases conid={connection._id} let:databases>
+                  {@const labelMatches = !filter || filterName(filter, getConnectionLabel(connection))}
+                  {#each databases.filter(db => labelMatches || filterName(filter, db.name)) as db (db.name)}
+                    {@const isActive = isCurrent && db.name == currentDbName}
+                    <button class="row nested" class:active={isActive} on:click={() => handlePickDatabase(connection, db.name)}>
+                      <span class="db-icon"><FontIcon icon="icon database" /></span>
+                      <span class="row-label">{db.name}</span>
+                      {#if isActive}
+                        <span class="check"><FontIcon icon="icon check" /></span>
+                      {/if}
+                    </button>
+                  {/each}
+                </ConnectionSwitcherDatabases>
+              {/if}
+            {/each}
+          {/if}
         {/each}
+        {#if filteredConnections.length == 0}
+          <div class="empty">{_t('connectionSwitcher.empty', { defaultMessage: 'No connections found' })}</div>
+        {/if}
       </div>
 
       <div class="footer">
@@ -411,6 +468,54 @@
     font-size: 11.5px;
     font-weight: 600;
     color: var(--theme-generic-font-grayed);
+  }
+
+  .group-label {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 6px 8px 4px;
+    border: none;
+    border-radius: var(--dim-radius-sm);
+    background: transparent;
+    color: var(--theme-generic-font-grayed);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .group-label:first-child {
+    margin-top: 0;
+  }
+  .group-label:hover {
+    color: var(--theme-generic-font);
+  }
+  .group-chevron {
+    display: flex;
+    font-size: 12px;
+    transition: transform var(--dim-transition-fast);
+  }
+  .group-label.collapsed .group-chevron {
+    transform: rotate(-90deg);
+  }
+  .group-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .group-count {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .group-chevron {
+      transition: none;
+    }
   }
 
   .row {
