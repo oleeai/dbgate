@@ -1,3 +1,4 @@
+import './utility/storageNamespace'; // first: per-path browser storage (WEB_ROOT)
 import './tailwind.css';
 import App from './App.svelte';
 import './utility/connectionsPinger';
