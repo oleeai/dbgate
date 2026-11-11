@@ -4,6 +4,8 @@
   import { extractDbNameFromComposite, filterName, getConnectionLabel } from 'dbgate-tools';
   import FontIcon from '../icons/FontIcon.svelte';
   import EngineLogo from '../icons/EngineLogo.svelte';
+  import ConnectionTags from '../elements/ConnectionTags.svelte';
+  import { getConnectionTags } from '../utility/connectionTags';
   import ConnectionSwitcherDatabases from './ConnectionSwitcherDatabases.svelte';
   import { openConnection } from '../appobj/ConnectionAppObject.svelte';
   import { currentDatabase, openedConnections } from '../stores';
@@ -14,6 +16,7 @@
   import runCommand from '../commands/runCommand';
   import { _t } from '../translations';
   import { popoverIn, popoverOut } from '../utility/motion';
+  import portal from '../utility/portal';
 
   export let showAllConnections = false;
   export let onShowAllConnections = null;
@@ -22,6 +25,7 @@
   let filter = '';
   let domRoot;
   let domSearch;
+  let domPopover;
 
   const connections = useConnectionList();
   const serverStatus = useServerStatus();
@@ -102,13 +106,37 @@
 
   function connectionMatches(connection, filter) {
     if (!filter) return true;
-    return filterName(filter, getConnectionLabel(connection), engineName(connection), ...cachedDatabaseNames(connection));
+    // labels count too, so typing a label lists the connections that have it
+    return filterName(
+      filter,
+      getConnectionLabel(connection),
+      engineName(connection),
+      connection.parent,
+      ...getConnectionTags(connection),
+      ...cachedDatabaseNames(connection)
+    );
+  }
+
+  // The sidebar clips its content, so the list lives in <body> (use:portal), fixed under the trigger, at least
+  // 440px wide so long names and labels fit, and never past the window's edge.
+  let popoverStyle = '';
+  function placePopover() {
+    if (!domRoot) return;
+    const rect = domRoot.getBoundingClientRect();
+    const left = rect.left + 10;
+    const width = Math.max(200, Math.min(Math.max(rect.width - 20, 440), window.innerWidth - left - 12));
+    const top = rect.bottom + 4;
+    popoverStyle = `left: ${left}px; top: ${top}px; width: ${width}px; max-height: min(560px, ${Math.max(
+      200,
+      window.innerHeight - top - 12
+    )}px);`;
   }
 
   async function toggle() {
     open = !open;
     filter = '';
     if (open) {
+      placePopover();
       await tick();
       domSearch?.focus();
     }
@@ -150,7 +178,7 @@
   }
 
   function handleWindowMouseDown(e) {
-    if (open && domRoot && !domRoot.contains(e.target)) close();
+    if (open && domRoot && !domRoot.contains(e.target) && !domPopover?.contains(e.target)) close();
   }
 
   function handleWindowKeyDown(e) {
@@ -158,7 +186,11 @@
   }
 </script>
 
-<svelte:window on:mousedown={handleWindowMouseDown} on:keydown={handleWindowKeyDown} />
+<svelte:window
+  on:mousedown={handleWindowMouseDown}
+  on:keydown={handleWindowKeyDown}
+  on:resize={() => open && placePopover()}
+/>
 
 <div class="switcher" bind:this={domRoot}>
   <button
@@ -179,7 +211,10 @@
       {/if}
     </span>
     <span class="text">
-      <span class="title">{title}</span>
+      <span class="title-row">
+        <span class="title">{title}</span>
+        {#if currentConnection}<ConnectionTags connection={currentConnection} />{/if}
+      </span>
       {#if currentConnection}
         <span class="subtitle"
           >{#if currentOffline}<span class="offline-label"
@@ -192,7 +227,12 @@
   </button>
 
   {#if open}
-    <div class="popover" in:popoverIn={{ anchor: domRoot }} out:popoverOut data-testid="ConnectionSwitcher_popover">
+    <div
+      class="popover"
+      bind:this={domPopover}
+      use:portal
+      style={popoverStyle}
+      in:popoverIn={{ anchor: domRoot }} out:popoverOut data-testid="ConnectionSwitcher_popover">
       <div class="search">
         <FontIcon icon="icon search" />
         <input
@@ -238,6 +278,7 @@
               >
                 <span class="avatar small" class:current={isCurrent}><EngineLogo {connection} size={14} /></span>
                 <span class="row-label" title={getConnectionLabel(connection)}>{rowLabel(connection, grouped)}</span>
+                <ConnectionTags {connection} />
                 {#if offline}
                   <span class="row-meta offline" data-testid="ConnectionSwitcher_offlineLabel">
                     <span class="offline-dot inline" />{_t('connectionSwitcher.offline', { defaultMessage: 'Offline' })}
@@ -377,7 +418,14 @@
     flex-direction: column;
     line-height: 1.3;
   }
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
   .title {
+    min-width: 0;
     font-size: 13px;
     font-weight: 600;
     letter-spacing: -0.01em;
@@ -411,14 +459,10 @@
   }
 
   .popover {
-    position: absolute;
+    position: fixed;
     z-index: 1000;
-    top: calc(100% + 4px);
-    left: 10px;
-    right: 10px;
     display: flex;
     flex-direction: column;
-    max-height: min(480px, 70vh);
     background: var(--theme-menu-background);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
@@ -550,6 +594,7 @@
     text-overflow: ellipsis;
   }
   .row-meta {
+    flex-shrink: 0;
     font-size: 11.5px;
     color: var(--theme-generic-font-grayed);
   }
