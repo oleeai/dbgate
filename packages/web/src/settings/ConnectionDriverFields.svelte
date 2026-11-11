@@ -652,6 +652,13 @@
       />
     </div>
   </div>
+  <FormTextField
+    label={_t('connection.tags', { defaultMessage: 'Labels' })}
+    name="tags"
+    disabled={isConnected || isFormReadOnly}
+    data-testid="ConnectionDriverFields_tags"
+    placeholder={_t('connection.tagsPlaceholder', { defaultMessage: 'Comma separated, e.g. cloud, staging' })}
+  />
 {/if}
 
 <style>

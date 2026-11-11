@@ -34,7 +34,7 @@ let pendingTestSubprocesses = {}; // Map of conid -> subprocess for MS Entra aut
 
 // fields of an existing connection that any user allowed to use it may change - they do not
 // change where or how the server connects (see testConnectionDefinitionPermission)
-const SAFE_CONNECTION_FIELDS = ['displayName', 'parent', 'connectionColor', 'unsaved'];
+const SAFE_CONNECTION_FIELDS = ['displayName', 'parent', 'connectionColor', 'tags', 'unsaved'];
 
 function getNamedArgs() {
   const res = {};

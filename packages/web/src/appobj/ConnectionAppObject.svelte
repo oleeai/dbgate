@@ -141,6 +141,7 @@
   import AboutModal from '../modals/AboutModal.svelte';
   import { tick } from 'svelte';
   import { getConnectionLabel } from 'dbgate-tools';
+  import { getConnectionTags } from '../utility/connectionTags';
   import hasPermission from '../utility/hasPermission';
   import { switchCurrentDatabase } from '../utility/common';
   import { getConnectionClickActionSetting } from '../settings/settingsTools';  import { isProApp } from '../utility/proTools';
@@ -480,7 +481,8 @@
   $: {
     if ($extensions.drivers.find(x => x.engine == data.engine)) {
       const match = (data.engine || '').match(/^([^@]*)@/);
-      extInfo = match ? match[1] : data.engine;
+      // its labels first (eg. "staging · postgres")
+      extInfo = [...getConnectionTags(data), match ? match[1] : data.engine].join(' · ');
       engineStatusIcon = null;
       engineStatusTitle = null;
     } else {

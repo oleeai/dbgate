@@ -44,6 +44,8 @@ function extractConnectionsFromEnv(env) {
     allowedDatabases: env[`ALLOWED_DATABASES_${id}`]?.replace(/\|/g, '\n'),
     allowedDatabasesRegex: env[`ALLOWED_DATABASES_REGEX_${id}`],
     parent: env[`PARENT_${id}`] || undefined,
+    // Labels shown as chips next to the connection, e.g. TAGS_db1=cloud,staging (comma separated)
+    tags: env[`TAGS_${id}`] || undefined,
     useSeparateSchemas: !!env[`USE_SEPARATE_SCHEMAS_${id}`],
     localDataCenter: env[`LOCAL_DATA_CENTER_${id}`],
 
@@ -81,6 +83,7 @@ function extractImportEntitiesFromEnv(env) {
   const connections = portalConnections.map((conn, index) => ({
     ...conn,
     id_original: conn._id,
+    tags: undefined, // no column for it in the storage database
     import_source_id: -1,
     conid: crypto.randomUUID(),
     _id: undefined,
