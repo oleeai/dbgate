@@ -223,6 +223,8 @@ const cloudContentListLoader = () => ({
   reloadTrigger: { key: `cloud-content-changed` },
   errorValue: [],
   onError: err => cloudContentErrorStore.set(!!err),
+  // The server refuses every private cloud route unless the private cloud is enabled there.
+  requiresPrivateCloud: true,
 });
 const teamFilesLoader = () => ({
   url: 'team-files/list',
@@ -248,8 +250,17 @@ const fileThemesLoader = () => ({
 });
 
 async function getCore(loader, args) {
-  const { url, params, reloadTrigger, transform, onLoaded, onError, errorValue } = loader(args);
+  const { url, params, reloadTrigger, transform, onLoaded, onError, errorValue, requiresPrivateCloud } = loader(args);
   const key = stableStringify({ url, ...params });
+
+  if (requiresPrivateCloud) {
+    // Don't ask for private cloud data when the server has it switched off (it would answer with an error toast).
+    const config = await getConfig();
+    if (!config?.allowPrivateCloud) {
+      if (onLoaded) onLoaded(errorValue);
+      return errorValue;
+    }
+  }
 
   async function doLoad() {
     const resp = await apiCall(url, params);
